@@ -286,7 +286,7 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
 			   M const &monoid) {
   //timer t;
   using T = typename slice<Iterator, Iterator>::value_type;
-  using key_type = typename std::remove_reference<decltype(get_key(A[0]))>::type;
+  using key_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_key(A[0]))>>;
   using val_type = decltype(get_val(A[0]));
   using result_type = std::pair<key_type,val_type>;
   
@@ -358,7 +358,7 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
         size_t end = bucket_offsets[i + 1];
         for (size_t j = start; j < end; j++) {
           key_type const &key = get_key(B[j]);
-          size_t k = ((uint) hasheq.hash(key)) % table_size;
+          size_t k = ((size_t) hasheq.hash(key)) % table_size;
           while (flags[k] && !hasheq.eql(table[k].first, key))
             k = (k + 1 == table_size) ? 0 : k + 1;
           if (flags[k]) {
@@ -442,9 +442,7 @@ sequence<typename Range::value_type> collect_reduce_sparse(Range const &A,
 
 template <typename Iterator, typename HashEq>
 auto histogram_sparse(slice<Iterator, Iterator> A, HashEq hasheq) {
-  // Guy : should work with const, but does not compile
-  //auto get_key = [&] (const auto& a) { return a; };
-  auto get_key = [] (auto& a) -> auto& { return a; };
+  auto get_key = [] (const auto& a) -> auto& { return a; };
   auto get_val = [] (const auto&) { return (size_t) 1; };
   return collect_reduce_sparse(A, hasheq, get_key, get_val,
 			       parlay::addm<size_t>());
