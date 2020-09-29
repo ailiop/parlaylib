@@ -124,6 +124,7 @@ struct _sequence_base {
     // Copy constructor
     _sequence_impl(const _sequence_impl& other) : allocator_type(other) {
       // Guy : added the following line -- important in initialization to an empty sequence, and also for short strings
+      // std::cout << "copy : length = " << other.size() << " obj size = " << sizeof(T) << std::endl;
       if (other.is_small()) { _data = other._data; return;}
       auto n = other.size();
       // Guy: shouldn't this just be a call to initialize_range (and move it from sequence to _sequnece_impl)?   Looks like code duplication, which means, e.g adjusting the granularity in multiple places.
