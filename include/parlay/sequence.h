@@ -123,13 +123,16 @@ struct _sequence_base {
 
     // Copy constructor
     _sequence_impl(const _sequence_impl& other) : allocator_type(other) {
+      // Guy : added the following line -- important in initialization to an empty sequence, and also for short strings
+      if (other.is_small()) { _data = other._data; return;}
       auto n = other.size();
+      // Guy: shouldn't this just be a call to initialize_range (and move it from sequence to _sequnece_impl)?   Looks like code duplication, which means, e.g adjusting the granularity in multiple places.
       ensure_capacity(n);
       auto buffer = data();
       auto other_buffer = other.data();
       parallel_for(0, n, [&](size_t i) {
-        initialize_explicit(buffer + i, other_buffer[i]);
-      });
+	  initialize_explicit(buffer + i, other_buffer[i]);
+	});   // should probably set granularity
       set_size(n);
     }
 
@@ -184,7 +187,7 @@ struct _sequence_base {
         auto current_buffer = data();
         parallel_for(0, n, [&](size_t i) {
           destroy(&current_buffer[i]);
-        });
+	  }); // Guy: set granularity?
       }
     }
 
@@ -195,6 +198,17 @@ struct _sequence_base {
       // types, so no destruction is necessary
       if (!is_small()) {
         destroy_all();
+        _data.long_mode.buffer.free_buffer(*this);
+      }
+      
+      _data.flag = 0;
+      _data.small_n = 0;
+    }
+
+    // Guy : added the following to match uninitialized.
+    // only safe if you know what you are doing
+    void clear_uninitialized() {
+      if (!is_small()) {
         _data.long_mode.buffer.free_buffer(*this);
       }
       
@@ -441,7 +455,7 @@ struct _sequence_base {
         parallel_for(0, n, [&](size_t i) {
           initialize_explicit(dest_buffer + i, std::move(current_buffer[i]));
           current_buffer[i].~value_type();
-        });
+	  }); // Guy: set granularity?
         
         // Destroy the old stuff
         if (!is_small()) {
@@ -749,6 +763,9 @@ class sequence : protected _sequence_base<T, Allocator> {
   }
 
   void clear() { impl.clear(); }
+
+  // Guy : added the following to match uninitialized.
+  void clear_uninitialized() { impl.clear_uninitialized(); }
   
   void resize(size_t new_size, const value_type& v = value_type()) {
     auto current = size();
@@ -756,7 +773,7 @@ class sequence : protected _sequence_base<T, Allocator> {
       auto buffer = impl.data();
       parallel_for(new_size, current, [&](size_t i) {
         impl.destroy(&buffer[i]);
-      });
+	});  // Guy : set granularity?
     }
     else {
       impl.ensure_capacity(new_size);
@@ -764,7 +781,7 @@ class sequence : protected _sequence_base<T, Allocator> {
       auto buffer = impl.data();
       parallel_for(current, new_size, [&](size_t i) {
         impl.initialize_explicit(&buffer[i], v);
-      });
+      }); // Guy : set granularity?
     }
     impl.set_size(new_size);
   }
@@ -863,7 +880,7 @@ class sequence : protected _sequence_base<T, Allocator> {
     else {
       sequence<value_type> the_tail(std::make_move_iterator(p),
         std::make_move_iterator(end()));
-      parallel_for(0, end() - p, [&](size_t i) { impl.destroy(&p[i]); });
+      parallel_for(0, end() - p, [&](size_t i) { impl.destroy(&p[i]); }); // Guy : set granularity?
       impl.set_size(p - begin());
       return the_tail;
     }
@@ -901,7 +918,7 @@ class sequence : protected _sequence_base<T, Allocator> {
     auto buffer = s.data();
     parallel_for(0, n, [&](size_t i) {
       s.impl.initialize(&buffer[i], f(i));
-    });
+    }); // Guy : set granularity, probably with an optional argument?
     return s;
   }
 
@@ -917,7 +934,7 @@ class sequence : protected _sequence_base<T, Allocator> {
       auto buffer = impl.data();
       parallel_for(0, n, [&](size_t i) {
         buffer[i].x = -1;
-      });
+      });  // Guy : set granularity?
     }
 #endif
   }
@@ -931,7 +948,7 @@ class sequence : protected _sequence_base<T, Allocator> {
     auto buffer = impl.data();
     parallel_for(0, n, [&](size_t i) {
       impl.initialize_explicit(buffer + i, v);
-    });
+    }); // Guy : set granularity?
     impl.set_size(n);
   }
 
@@ -960,7 +977,7 @@ class sequence : protected _sequence_base<T, Allocator> {
     auto buffer = impl.data();
     parallel_for(0, n, [&](size_t i) {
       impl.initialize_explicit(buffer + i, first[i]);
-    });
+      }, 1000);   // Guy, added granularity of 1000.   Perhaps should be 0 if not trvially copyable
     impl.set_size(n);
   }
   
@@ -995,7 +1012,7 @@ class sequence : protected _sequence_base<T, Allocator> {
   iterator append_n(size_t n, const value_type& t) {
     impl.ensure_capacity(size() + n);
     auto it = end();
-    parallel_for(0, n, [&](size_t i) { impl.initialize_explicit(it + i, t); });
+    parallel_for(0, n, [&](size_t i) { impl.initialize_explicit(it + i, t); });  // Guy : set granularity?
     impl.set_size(size() + n);
     return it;
   }
@@ -1027,8 +1044,9 @@ class sequence : protected _sequence_base<T, Allocator> {
   iterator append_range(_RandomAccessIterator first, _RandomAccessIterator last, std::random_access_iterator_tag) {
     auto n = std::distance(first, last);
     impl.ensure_capacity(size() + n);
+    // Guy : code duplication with append_n ?
     auto it = end();
-    parallel_for(0, n, [&](size_t i) { impl.initialize_explicit(it + i, first[i]); });
+    parallel_for(0, n, [&](size_t i) { impl.initialize_explicit(it + i, first[i]); }); // guy : set granularity?
     impl.set_size(size() + n);
     return it;
   }
