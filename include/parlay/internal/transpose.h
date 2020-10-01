@@ -166,7 +166,8 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
     //std::cout << "after transpose loop" << std::endl;
   } else {  // for larger input do cache efficient transpose
     // sequence<s_size_t> source_offsets(counts,m+1);
-    auto dest_offsets = sequence<s_size_t>::uninitialized(m);
+    //std::cout << "enter transpose" << std::endl;
+    dest_offsets = sequence<s_size_t>::uninitialized(m);
     transpose<typename sequence<s_size_t>::iterator>(counts.begin(), dest_offsets.begin())
         .trans(num_blocks, num_buckets);
 
@@ -176,12 +177,14 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
     if (total != n || total2 != n)
       throw std::logic_error("in transpose, internal bad count");
     counts[m] = n;
-
+    //std::cout << "after scans" << std::endl;
+ 
     blockTrans<InIterator, OutIterator,
                typename sequence<s_size_t>::iterator,
                typename sequence<s_size_t>::iterator>(
       From, To, counts.begin(), dest_offsets.begin())
         .trans(num_blocks, num_buckets);
+    //std::cout << "after final transpose" << std::endl;
   }
 
   // return the bucket offsets, padded with n at the end

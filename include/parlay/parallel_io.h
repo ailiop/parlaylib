@@ -50,7 +50,7 @@ namespace parlay {
   // Cannot be copied, but can be moved
   // Meant for large files, and can be significantly faster than char_seq_from_file
   // Uses mmap when available (!!currently only works with mmap)
-  auto char_range_from_file(std::string const &filename);
+  // auto char_range_from_file(std::string const &filename);
 
   // Writes a character sequence to a file, returns 0 if successful
   int char_seq_to_file(sequence<char> const &S, std::string const &filename);
@@ -90,9 +90,9 @@ namespace parlay {
 
   // Convers a character range to long our double
   template <class Range>
-  long char_range_to_l(Range R);
+  long char_range_to_l(const Range &R);
   template <class Range>
-  double char_range_to_d(Range R);
+  double char_range_to_d(const Range &R);
 
   // Converts many types to a "pretty printed" character sequence
   //template <typename T>
@@ -127,6 +127,10 @@ namespace parlay {
   // char_range_from_file
   // ********************************
 
+  struct foo {
+    int x;
+  };
+  
   struct char_range_from_file {
   private:
     char* begin_p;
@@ -252,7 +256,7 @@ namespace parlay {
   // ********************************
   
   template <class Range>
-  long char_range_to_l(Range R) {
+  long char_range_to_l(const Range &R) {
     auto str = make_slice(R);
     size_t i = 0;
     auto read_digits = [&] () {
@@ -266,11 +270,10 @@ namespace parlay {
   }
 
   template <class Range>
-  double char_range_to_d(Range R) {
-    auto str = make_slice(R);
+  double char_range_to_d(const Range &str) {
     char str_padded[str.size()+1];
-    parallel_for(0, str.size(), [&] (size_t i) {
-	str_padded[i] = str[i];});
+    for (int i=0; i < str.size(); i++) 
+      str_padded[i] = str[i];
     str_padded[str.size()] = 0;
     return atof(str_padded);
   }
