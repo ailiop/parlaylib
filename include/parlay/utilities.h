@@ -196,6 +196,12 @@ inline size_t granularity(size_t n) {
    moving and copying, so that the move algorithm can be written
    agnostic to which one it uses */
 
+// tmpfix
+  template<typename T>
+  inline void copy_memory(T& a, const T &b) {
+    std::memcpy(&a, &b, sizeof(T));
+  }
+
 struct move_tag {};
 struct uninitialized_move_tag {};
 struct copy_tag {};

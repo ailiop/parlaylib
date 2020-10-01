@@ -51,7 +51,7 @@ namespace parlay {
 
 #ifndef PARLAY_USE_STD_ALLOC
 template<typename T>
-using _sequence_default_allocator = parlay::allocator<T>;
+  using _sequence_default_allocator = std::allocator<T>; //parlay::allocator<T>;
 #else
 template<typename T>
 using _sequence_default_allocator = std::allocator<T>;

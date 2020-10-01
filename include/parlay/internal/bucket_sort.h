@@ -32,7 +32,10 @@ void radix_step_(slice<InIterator, InIterator> A,
 
   for (long j = n - 1; j >= 0; j--) {
     long x = --counts[keys[j]];
-    B[x] = std::move(A[j]);
+    // tmpfix
+    // B[x] = std::move(A[j]);
+    copy_memory(B[x], A[j]);
+
   }
 }
 
@@ -141,6 +144,8 @@ void bucket_sort(slice<Iterator, Iterator> in, BinaryOp f, bool stable = false) 
   size_t n = in.size();
   auto tmp = sequence<T>::uninitialized(n);
   bucket_sort_r(make_slice(in), make_slice(tmp), f, stable, true);
+  // tmpfix
+  tmp.clear_uninitialized();
 }
 
 }  // namespace internal

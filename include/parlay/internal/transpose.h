@@ -76,7 +76,10 @@ struct blockTrans {
           size_t sa = OA[i * rLength + j];
           size_t sb = OB[j * cLength + i];
           size_t l = OA[i * rLength + j + 1] - sa;
-          for (size_t k = 0; k < l; k++) B[k + sb] = A[k + sa];
+          for (size_t k = 0; k < l; k++)
+	    // tmpfix
+	    //B[k + sb] = A[k + sa];
+	    copy_memory(B[k+sb], A[k+sa]);
         }
 
       });
@@ -129,6 +132,7 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
 
   // for smaller input do non-cache oblivious version
   if (n < (1 << 22) || num_buckets <= 512 || num_blocks <= 512) {
+    //std::cout << "enter transpose" << std::endl;
     size_t block_bits = log2_up(num_blocks);
     size_t block_mask = num_blocks - 1;
     if ((size_t)1 << block_bits != num_blocks)
@@ -144,7 +148,8 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
     dest_offsets = sequence<s_size_t>::from_function(m, get);
     size_t sum = scan_inplace(make_slice(dest_offsets), add);
     if (sum != n) throw std::logic_error("in transpose, internal bad count");
-
+    //std::cout << "after scan" << std::endl;
+    
     // send each key to correct location within its bucket
     auto f = [&](size_t i) {
       size_t s_offset = i * block_size;
@@ -152,13 +157,16 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
         size_t d_offset = dest_offsets[i + num_blocks * j];
         size_t len = counts[i * num_buckets + j];
         for (size_t k = 0; k < len; k++)
-          To[d_offset++] = From[s_offset++];
+          // tmpfix
+	  // To[d_offset++] = From[s_offset++];
+	  copy_memory(To[d_offset++], From[s_offset++]);
       }
     };
     parallel_for(0, num_blocks, f, 1);
+    //std::cout << "after transpose loop" << std::endl;
   } else {  // for larger input do cache efficient transpose
     // sequence<s_size_t> source_offsets(counts,m+1);
-    dest_offsets = sequence<s_size_t>(m);
+    auto dest_offsets = sequence<s_size_t>::uninitialized(m);
     transpose<typename sequence<s_size_t>::iterator>(counts.begin(), dest_offsets.begin())
         .trans(num_blocks, num_buckets);
 

@@ -92,7 +92,11 @@ void seq_sort_(slice<InIterator, InIterator> In,
                /* inplace */ std::true_type,
                bool stable = false) {
   size_t l = In.size();
-  for (size_t j = 0; j < l; j++) assign_uninitialized(Out[j], std::move(In[j]));
+  for (size_t j = 0; j < l; j++)
+    // tmpfix
+    // assign_uninitialized(Out[j], std::move(In[j]));
+    copy_memory(Out[j], In[j]);
+
   seq_sort_inplace(Out, less, stable);
 }
 
@@ -126,7 +130,8 @@ void sample_sort_(slice<InIterator, InIterator> In,
                   bool stable = false) {
   using value_type = typename slice<InIterator, InIterator>::value_type;
   size_t n = In.size();
-
+  //std::cout << "enter" << std::endl;
+  
   if (n < QUICKSORT_THRESHOLD) {
     small_sort_dispatch(In, Out, less, inplace_tag{}, stable);
   } else {
@@ -161,6 +166,8 @@ void sample_sort_(slice<InIterator, InIterator> In,
 
     sequence<value_type> Tmp = sequence<value_type>::uninitialized(n);
 
+    //std::cout << "before loop" << std::endl;
+    
     // sort each block and merge with samples to get counts for each bucket
     auto counts = sequence<s_size_t>::uninitialized(m + 1);
     counts[m] = 0;
@@ -172,11 +179,17 @@ void sample_sort_(slice<InIterator, InIterator> In,
                 less);
     });
 
+    //std::cout << "after loop" << std::endl;
+
     // move data from blocks to buckets
     auto bucket_offsets =
         transpose_buckets(Tmp.begin(), Out.begin(), counts, n, block_size,
                           num_blocks, num_buckets);
-    Tmp.clear();
+
+    // std::cout << "before clear" << std::endl;
+    // tmpfix
+    Tmp.clear_uninitialized();
+    //std::cout << "after clear" << std::endl;
 
     // sort within each bucket
     parallel_for(0, num_buckets, [&](size_t i) {
