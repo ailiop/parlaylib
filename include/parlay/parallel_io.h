@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "../../../common/get_time.h"
+//#include "../../../common/get_time.h"
 
 namespace parlay {
 
@@ -194,7 +194,7 @@ namespace parlay {
   template <class Range, class UnaryPred, class F>
   auto tokens(Range &R, UnaryPred const &is_space, const F &f)
     -> sequence<decltype(f(make_slice(R)))> {
-    timer t("tokens");
+    //timer t("tokens");
     auto S = make_slice(R);
     size_t n = S.size();
     if (n == 0) return sequence<decltype(f(make_slice(R)))>();
@@ -202,16 +202,16 @@ namespace parlay {
     parallel_for(1, n, [&] (long i) {
 	Flags[i] = is_space(S[i-1]) != is_space(S[i]);
       }, 10000);
-    t.next("for");
+    //t.next("for");
 	  
     Flags[0] = !is_space(S[0]);
     Flags[n] = !is_space(S[n-1]);
 
     sequence<long> Locations = pack_index<long>(Flags);
-    t.next("pack index");
+    //t.next("pack index");
     auto x = tabulate(Locations.size()/2, [&] (size_t i) {
 	return f(S.cut(Locations[2*i], Locations[2*i+1]));});
-    t.next("tab");
+    //t.next("tab");
     return x;
   }
 

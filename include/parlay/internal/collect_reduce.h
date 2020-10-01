@@ -153,7 +153,7 @@ struct get_bucket {
         if (hash_table[idx].second == -1) {
           hash_table[idx] = std::make_pair(s, 0);
           break;
-        } else if (heq.eql(hash_table[idx].first, s)) {
+        } else if (heq.equal(hash_table[idx].first, s)) {
           hash_table[idx].second += 1;
           break;
         } else
@@ -185,7 +185,7 @@ struct get_bucket {
     size_t hash_val = heq.hash(key);
     if (heavy_hitters) {
       auto &h = hash_table[hash_val & table_mask];
-      if (h.second != -1 && heq.eql(h.first, key))
+      if (h.second != -1 && heq.equal(h.first, key))
         return h.second + num_buckets;  // top half
     }
     return hash_val & bucket_mask;  // bottom half
@@ -195,7 +195,7 @@ struct get_bucket {
 template <typename K>
 struct hasheq_mask_low {
   inline size_t hash(K a) const { return hash64_2(a & ~((size_t)15)); }
-  inline bool eql(K a, K b) const { return a = b; }
+  inline bool equal(K a, K b) const { return a = b; }
 };
 
 template <typename Seq, class Key, class Value, typename M>
@@ -359,7 +359,7 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
         for (size_t j = start; j < end; j++) {
           key_type const &key = get_key(B[j]);
           size_t k = ((size_t) hasheq.hash(key)) % table_size;
-          while (flags[k] && !hasheq.eql(table[k].first, key))
+          while (flags[k] && !hasheq.equal(table[k].first, key))
             k = (k + 1 == table_size) ? 0 : k + 1;
           if (flags[k]) {
             table[k].second = monoid.f(table[k].second, get_val(B[j]));
@@ -432,7 +432,7 @@ sequence<typename Range::value_type> collect_reduce_sparse(Range const &A,
     
   struct hasheq {
     static inline size_t hash(K const &a) { return parlay::hash64_2(a); }
-    static inline bool eql(K const &a, K const &b) { return a == b; }
+    static inline bool equal(K const &a, K const &b) { return a == b; }
   };
   
   auto get_key = [] (P a) {return a.first;};
@@ -440,13 +440,26 @@ sequence<typename Range::value_type> collect_reduce_sparse(Range const &A,
   return collect_reduce_sparse(A, hasheq(), get_key, get_val, monoid);
 }
 
-template <typename Iterator, typename HashEq>
-auto histogram_sparse(slice<Iterator, Iterator> A, HashEq hasheq) {
-  auto get_key = [] (const auto& a) -> auto& { return a; };
-  auto get_val = [] (const auto&) { return (size_t) 1; };
-  return collect_reduce_sparse(A, hasheq, get_key, get_val,
-			       parlay::addm<size_t>());
-}
+  // composes a hash function and equal function
+  template <typename Hash, typename Equal>
+  struct hasheq {
+    Hash hash;
+    Equal equal;
+    hasheq(Hash hash, Equal equal) : hash(hash), equal(equal) {};
+  };
+
+  template <typename Iterator,
+	    typename Hash = std::hash<typename std::iterator_traits<Iterator>::value_type>,
+	    typename Equal = std::equal_to<typename std::iterator_traits<Iterator>::value_type>>
+    auto histogram_sparse(slice<Iterator, Iterator> A,
+		  Hash hash = std::hash<typename std::iterator_traits<Iterator>::value_type>(),
+		  Equal equal = std::equal_to<typename std::iterator_traits<Iterator>::value_type>()) {
+    auto get_key = [] (const auto& a) -> auto& { return a; };
+    auto get_val = [] (const auto&) { return (size_t) 1; };
+    
+    return collect_reduce_sparse(A, hasheq(hash, equal), get_key, get_val,
+				 parlay::addm<size_t>());
+  }
 
 }  // namespace internal
 }  // namespace parlay
