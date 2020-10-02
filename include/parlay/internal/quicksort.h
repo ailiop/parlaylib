@@ -211,7 +211,8 @@ sequence<typename SeqA::value_type> p_quicksort(SeqA const& In, const F& f) {
 template <typename Iterator, class F>
 void p_quicksort_inplace(slice<Iterator, Iterator> In, const F& f) {
   using value_type = typename slice<Iterator, Iterator>::value_type;
-  auto Tmp = sequence<value_type>::uninitialized(In.size());
+  // tmpfix : does not work if uninitialized since split_three does a copy
+  auto Tmp = sequence<value_type>(In.size()); //::uninitialized(In.size());
   p_quicksort_(In, make_slice(Tmp), f, true);
 }
 
