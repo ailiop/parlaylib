@@ -11,6 +11,7 @@
 #include <iostream>
 #include <memory>
 #include <type_traits>
+#include <assert.h>
 
 #include "parallel.h"
 
