@@ -366,7 +366,7 @@ namespace parlay {
 
   template <class T>
   sequence<char> to_char_seq(sequence<T> const &A) {
-    return to_char_seq(A.slice());
+    return to_char_seq(make_slice(A));
   }
 
   template <>
