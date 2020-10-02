@@ -135,7 +135,7 @@ auto pack(const R& r, const BoolSeq& b) {
 }
 
 template<PARLAY_RANGE_TYPE R_in, PARLAY_RANGE_TYPE BoolSeq, PARLAY_RANGE_TYPE R_out>
-auto pack_into(const R_in& in, const BoolSeq& b, R_out& out) {
+auto pack_into(const R_in& in, const BoolSeq& b, R_out&& out) {
   static_assert(std::is_convertible<decltype(*std::begin(b)), bool>::value);
   return internal::pack_out(make_slice(in), b, make_slice(out));
 }
