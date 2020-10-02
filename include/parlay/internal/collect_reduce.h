@@ -277,6 +277,64 @@ auto histogram(slice<Iterator, Iterator> A, Integer_ m) {
   return collect_reduce(A, get_key, get_val, parlay::addm<Integer_>(), m);
 }
 
+  template <typename Iterator, typename HashEq, typename GetK, typename GetV, typename M>
+  auto seq_collect_reduce_sparse(slice<Iterator,Iterator> A, slice<Iterator,Iterator> Heavy,
+				 HashEq hasheq, GetK get_key, GetV get_val,
+				 M const &monoid, size_t table_size) {
+    using T = typename slice<Iterator, Iterator>::value_type;
+    using key_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_key(A[0]))>>;
+    using val_type = decltype(get_val(A[0]));
+    using result_type = std::pair<key_type,val_type>;
+
+    size_t count=0;
+    auto table = sequence<result_type>::uninitialized(table_size);
+    sequence<bool> flags(table_size, false);
+		 
+    // insert small buckets (ones with multiple different items)
+    for (size_t j = 0; j < A.size(); j++) {
+      key_type const &key = get_key(A[j]);
+      size_t k = ((size_t) hasheq.hash(key)) % table_size;
+      while (flags[k] && !hasheq.equal(table[k].first, key))
+	k = (k + 1 == table_size) ? 0 : k + 1;
+      if (flags[k]) {
+	table[k].second = monoid.f(table[k].second, get_val(A[j]));
+      } else {
+	flags[k] = true;
+	count++;
+	assign_uninitialized(table[k], result_type(key, get_val(A[j])));
+      }
+    }
+
+    // now if there are any "heavy hitters" (buckets with a single key)
+    // insert them, using parallel reduce to sum them
+    if (Heavy.size() > 0) {
+      auto f = [&] (size_t i) -> val_type {
+	return get_val(Heavy[i]);
+      };
+      auto s = delayed_seq<val_type>(Heavy.size(), f);
+      val_type val = internal::reduce(s, monoid);
+      size_t j = 0;
+      while (flags[j]) j = (j + 1 == table_size) ? 0 : j + 1;
+      flags[j] = true;
+      count++;
+      assign_uninitialized(table[j],
+			   result_type(get_key(Heavy[0]), val));
+    }
+
+    // pack non-empty entries of table
+    auto r = sequence<result_type>::uninitialized(count);
+    size_t j = 0;
+    for (size_t i = 0; i < table_size; i++) {
+      if (flags[i])
+	move_uninitialized(r[j++], table[i]);
+    }
+    // for efficiency, entries should be moved out already
+    table.clear_uninitialized();
+
+    assert(j == count);
+    return r;
+  }
+
 // this one is for more buckets than the length of A (i.e. sparse)
 //  A is a sequence of key-value pairs
 //  monoid has fields m.identity and m.f (a binary associative function)
@@ -292,24 +350,9 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   
   size_t n = A.size();
 
-  if (false) {
-    auto cmp = [&] (T a, T b) { return false;}; // neeed to fix
-    sequence<T> B = sample_sort(A, cmp);
-    sequence<result_type> R(n);
-    size_t j = 0;
-    key_type key = get_key(B[0]);
-    R[0] = result_type(key, get_val(B[0]));
-    for (size_t i = 1; i < n; i++) {
-      key_type new_key = get_key(B[i]);
-      val_type new_val = get_val(B[i]);
-      if (key == new_key)
-        R[j].second = monoid.f(R[j].second, new_val);
-      else {
-        R[j++] = result_type(new_key, new_val);
-	key = new_key;
-      }
-    };
-    return tabulate(j, [&](size_t i) -> result_type { return R[i]; });
+  if (n < 10000) {
+    return seq_collect_reduce_sparse(A, A.cut(0,0), hasheq, get_key, get_val, monoid,
+				     2*A.size());
   }
 
   // #bits is selected so each block fits into L3 cache
@@ -343,70 +386,20 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   if (bucket_size < 128000) factor += (17 - log2_up(bucket_size)) * .15;
   size_t table_size = (factor * bucket_size);
   size_t total_table_size = table_size * num_tables;
-  sequence<size_t> sizes(num_tables + 1);
-  sequence<sequence<result_type>> tables(num_tables);
   
   // now in parallel process each bucket sequentially
-  parallel_for(0, num_tables,
-      [&] (size_t i) {
-        size_t count=0;
-        auto table = sequence<result_type>::uninitialized(table_size);
-        sequence<bool> flags(table_size, false);
-		 
-        // insert small buckets (ones with multiple different items)
-        size_t start = bucket_offsets[i];
-        size_t end = bucket_offsets[i + 1];
-        for (size_t j = start; j < end; j++) {
-          key_type const &key = get_key(B[j]);
-          size_t k = ((size_t) hasheq.hash(key)) % table_size;
-          while (flags[k] && !hasheq.equal(table[k].first, key))
-            k = (k + 1 == table_size) ? 0 : k + 1;
-          if (flags[k]) {
-            table[k].second = monoid.f(table[k].second, get_val(B[j]));
-          } else {
-            flags[k] = true;
-	    count++;
-            assign_uninitialized(table[k], result_type(key, get_val(B[j])));
-          }
-        }
+  auto tables = sequence<sequence<result_type>>::from_function(num_tables, [&] (size_t i) {
+      auto heavy = (gb.heavy_hitters ?
+		    B.cut(bucket_offsets[num_tables + i], bucket_offsets[num_tables + i + 1]) :
+		    B.cut(0,0));
+      return seq_collect_reduce_sparse(B.cut(bucket_offsets[i],bucket_offsets[i+1]),
+				       heavy, hasheq, get_key, get_val, monoid,
+				       table_size);
+    }, 0);
 
-        // now if there are any "heavy hitters" (buckets with a single item)
-        // insert them, using parallel reduce to sum them
-        if (gb.heavy_hitters) {
-          size_t start_l = bucket_offsets[num_tables + i];
-          size_t len = bucket_offsets[num_tables + i + 1] - start_l;
-          if (len > 0) {
-            auto f = [&](size_t i) -> val_type {
-              return get_val(B[i + start_l]);
-            };
-            auto s = delayed_seq<val_type>(len, f);
-            val_type val = internal::reduce(s, monoid);
-            size_t j = 0;
-            while (flags[j]) j = (j + 1 == table_size) ? 0 : j + 1;
-	    flags[j] = true;
-	    count++;
-	    assign_uninitialized(table[j],
-				 result_type(get_key(B[start_l]), val));
-          }
-        }
-
-        // pack non-empty entries of table
-	auto r = sequence<result_type>::uninitialized(count);
-	size_t j = 0;
-        for (size_t i = 0; i < table_size; i++) {
-          if (flags[i])
-	    move_uninitialized(r[j++], table[i]);
-	}
-	assert(j == count);
-	sizes[i] = j;
-	tables[i] = std::move(r);
-	// for efficiency, entries should be moved out already
-	table.clear_uninitialized(); 
-      },
-      1);
-  //t.next("hash insert");
+  auto sizes = tabulate(num_tables+1, [&] (size_t i) {
+      return (i==num_tables) ? 0 : tables[i].size();});
   
-  sizes[num_tables] = 0;
   size_t total = scan_inplace(make_slice(sizes),addm<size_t>());
 
   // move packed tables into contiguous result
@@ -423,23 +416,6 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   return result;
 }
 
-// default hash and equality, and taking a range of pairs
-template <typename Range, typename M>
-sequence<typename Range::value_type> collect_reduce_sparse(Range const &A,
-							   M const &monoid) {
-  using P = typename Range::value_type;
-  using K = typename P::first_type;
-    
-  struct hasheq {
-    static inline size_t hash(K const &a) { return parlay::hash64_2(a); }
-    static inline bool equal(K const &a, K const &b) { return a == b; }
-  };
-  
-  auto get_key = [] (P a) {return a.first;};
-  auto get_val = [] (P a) {return a.second;};
-  return collect_reduce_sparse(A, hasheq(), get_key, get_val, monoid);
-}
-
   // composes a hash function and equal function
   template <typename Hash, typename Equal>
   struct hasheq {
@@ -448,17 +424,36 @@ sequence<typename Range::value_type> collect_reduce_sparse(Range const &A,
     hasheq(Hash hash, Equal equal) : hash(hash), equal(equal) {};
   };
 
-  template <typename Iterator,
-	    typename Hash = std::hash<typename std::iterator_traits<Iterator>::value_type>,
-	    typename Equal = std::equal_to<typename std::iterator_traits<Iterator>::value_type>>
-    auto histogram_sparse(slice<Iterator, Iterator> A,
-		  Hash hash = std::hash<typename std::iterator_traits<Iterator>::value_type>(),
-		  Equal equal = std::equal_to<typename std::iterator_traits<Iterator>::value_type>()) {
+  // Takes a range of <key_type,value_type> pairs and returns a sequence of
+  // the same type, but with equal keys combined into a single element.
+  // Values are combined with monoid, which must be on the value type.
+  // Returned in an arbitrary order that depends on the hash function.
+  template <PARLAY_RANGE_TYPE R,
+	    typename Monoid,
+	    typename Hash = std::hash<typename range_value_type_t<R>::first_type>,
+	    typename Equal = std::equal_to<typename range_value_type_t<R>::first_type>>
+  auto collect_reduce_sparse(R const &A, Monoid const &monoid,
+			     Hash hash = {}, Equal equal = {}) { 
+    using P = range_value_type_t<R>;
+    
+    auto get_key = [] (P a) {return a.first;};
+    auto get_val = [] (P a) {return a.second;};
+    return collect_reduce_sparse(make_slice(A), hasheq(hash,equal),
+				 get_key, get_val, monoid);
+  }
+
+  // Returns a sequence of <R::value_type,size_t> pairs, each consisting of
+  // a unique value from the input, and the number of times it appears.
+  // Returned in an arbitrary order that depends on the hash function.
+  template <PARLAY_RANGE_TYPE R,
+	    typename Hash = std::hash<range_value_type_t<R>>,
+	    typename Equal = std::equal_to<range_value_type_t<R>>>
+  auto histogram_sparse(const R& A, Hash hash = {}, Equal equal = {}) { 
     auto get_key = [] (const auto& a) -> auto& { return a; };
     auto get_val = [] (const auto&) { return (size_t) 1; };
     
-    return collect_reduce_sparse(A, hasheq(hash, equal), get_key, get_val,
-				 parlay::addm<size_t>());
+    return collect_reduce_sparse(make_slice(A), hasheq(hash, equal),
+				 get_key, get_val, parlay::addm<size_t>());
   }
 
 }  // namespace internal
