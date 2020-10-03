@@ -267,15 +267,6 @@ auto collect_reduce(Seq const &A, Key const &get_key, Value const &get_value,
   return sums;
 }
 
-// histogram based on collect_reduce.
-// m is the number of buckets
-// the output type of each bucket will have the same integer type as m
-template <typename Iterator, typename Integer_>
-auto histogram(slice<Iterator, Iterator> A, Integer_ m) {
-  auto get_key = [&](const auto& a) { return a; };
-  auto get_val = [&](const auto&) { return (Integer_)1; };
-  return collect_reduce(A, get_key, get_val, parlay::addm<Integer_>(), m);
-}
 
   template <typename Iterator, typename HashEq, typename GetK, typename GetV, typename M>
   auto seq_collect_reduce_sparse(slice<Iterator,Iterator> A, slice<Iterator,Iterator> Heavy,
@@ -424,20 +415,24 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
     hasheq(Hash hash, Equal equal) : hash(hash), equal(equal) {};
   };
 
+  // ***************************************
+  // User facing interface below here
+  // ***************************************
+  
   // Takes a range of <key_type,value_type> pairs and returns a sequence of
   // the same type, but with equal keys combined into a single element.
-  // Values are combined with monoid, which must be on the value type.
+  // Values are combined with a monoid, which must be on the value type.
   // Returned in an arbitrary order that depends on the hash function.
   template <PARLAY_RANGE_TYPE R,
 	    typename Monoid,
 	    typename Hash = std::hash<typename range_value_type_t<R>::first_type>,
 	    typename Equal = std::equal_to<typename range_value_type_t<R>::first_type>>
-  auto collect_reduce_sparse(R const &A, Monoid const &monoid,
-			     Hash hash = {}, Equal equal = {}) { 
+  auto group_by_and_combine(R const &A, Monoid const &monoid,
+			    Hash hash = {}, Equal equal = {}) { 
     using P = range_value_type_t<R>;
     
-    auto get_key = [] (P a) {return a.first;};
-    auto get_val = [] (P a) {return a.second;};
+    auto get_key = [] (const auto& a) {return a.first;};
+    auto get_val = [] (const auto& a) {return a.second;};
     return collect_reduce_sparse(make_slice(A), hasheq(hash,equal),
 				 get_key, get_val, monoid);
   }
@@ -448,12 +443,41 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   template <PARLAY_RANGE_TYPE R,
 	    typename Hash = std::hash<range_value_type_t<R>>,
 	    typename Equal = std::equal_to<range_value_type_t<R>>>
-  auto histogram_sparse(const R& A, Hash hash = {}, Equal equal = {}) { 
+  auto group_by_and_count(const R& A, Hash hash = {}, Equal equal = {}) { 
     auto get_key = [] (const auto& a) -> auto& { return a; };
     auto get_val = [] (const auto&) { return (size_t) 1; };
     
     return collect_reduce_sparse(make_slice(A), hasheq(hash, equal),
 				 get_key, get_val, parlay::addm<size_t>());
+  }
+
+  // Takes a range of <integer_key,value_type> pairs and returns a sequence of
+  // value_type, with all values corresponding to key i, combined at location i.
+  // Values are combined with a monoid, which must be on the value type.
+  // Must specify the number of buckets and it is an error for a key to be
+  // be out of range.
+  template <PARLAY_RANGE_TYPE R,
+	    typename Monoid,
+	    typename Hash = std::hash<typename range_value_type_t<R>::first_type>,
+	    typename Equal = std::equal_to<typename range_value_type_t<R>::first_type>>
+  auto group_by_and_combine_by_bucket(R const &A, size_t num_buckets,
+				      Monoid const &monoid,
+				      Hash hash = {}, Equal equal = {}) { 
+    using P = range_value_type_t<R>;
+    
+    auto get_key = [] (const auto& a) {return a.first;};
+    auto get_val = [] (const auto& a) {return a.second;};
+    return collect_reduce(make_slice(A), get_key, get_val, monoid, num_buckets);
+  }
+
+  // Given a sequence of integers creates a histogram with the count
+  // of each interger value.   The range num_buckets must be specified
+  // and it is an error if any integers is out of the range [0:num_buckets).
+  template <PARLAY_RANGE_TYPE R, typename Integer_t>
+  auto histogram(R const &A, Integer_t num_buckets) {
+    auto get_key = [&] (const auto& a) { return a; };
+    auto get_val = [&] (const auto&) { return (Integer_t) 1; };
+    return collect_reduce(A, get_key, get_val, parlay::addm<Integer_t>(), num_buckets);
   }
 
 }  // namespace internal
