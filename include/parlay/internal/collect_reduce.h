@@ -341,10 +341,9 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   
   size_t n = A.size();
 
-  if (n < 10000) {
+  if (n < 10000) 
     return seq_collect_reduce_sparse(A, A.cut(0,0), hasheq, get_key, get_val, monoid,
 				     2*A.size());
-  }
 
   // #bits is selected so each block fits into L3 cache
   //   assuming an L3 cache of size 1M per thread
