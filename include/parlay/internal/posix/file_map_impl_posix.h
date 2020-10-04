@@ -37,19 +37,20 @@ class file_map {
     const char* end() const {return end_p; }
 
     explicit file_map(const std::string& filename) {
-      
       struct stat sb;
+
       int fd = open(filename.c_str(), O_RDONLY);
-      
-      assert(fd != -1);
-      assert(fstat(fd, &sb) != -1);
-      assert(S_ISREG (sb.st_mode));
+
+      assert (fd != -1);
+      auto ft = fstat(fd, &sb); 
+      assert(ft != -1);
+      assert( S_ISREG (sb.st_mode));
     
       char *p = static_cast<char*>(mmap(0, sb.st_size, PROT_READ, MAP_PRIVATE, fd, 0));
       assert(p != MAP_FAILED);
       [[maybe_unused]] int close_p = ::close(fd);
       assert(close_p != -1);
-      
+
       begin_p = p;
       end_p = p + sb.st_size;
     }
