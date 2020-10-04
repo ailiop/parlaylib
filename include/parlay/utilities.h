@@ -200,7 +200,7 @@ inline size_t granularity(size_t n) {
 // tmpfix
   template<typename T>
   inline void copy_memory(T& a, const T &b) {
-    std::memcpy(&a, &b, sizeof(T));
+    memcpy(&a, &b, sizeof(T));
   }
 
 struct move_tag {};
