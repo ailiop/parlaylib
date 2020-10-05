@@ -726,7 +726,7 @@ bool inline is_whitespace(unsigned char c) {
 // this function returns a sequence consisting of the returned values of f for
 // each token.
 template <PARLAY_RANGE_TYPE R, typename UnaryOp, typename UnaryPred = decltype(is_whitespace)>
-auto map_tokens(const R& r, UnaryOp f, UnaryPred is_space = is_whitespace) {
+auto map_tokens(R& r, UnaryOp f, UnaryPred is_space = is_whitespace) {
   using f_return_type = decltype(f(make_slice(r)));
 
   auto S = make_slice(r);

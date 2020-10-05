@@ -271,7 +271,8 @@ auto collect_reduce(Seq const &A, Key const &get_key, Value const &get_value,
   template <typename Iterator, typename HashEq, typename GetK, typename GetV, typename M>
   auto seq_collect_reduce_sparse(slice<Iterator,Iterator> A, slice<Iterator,Iterator> Heavy,
 				 HashEq hasheq, GetK get_key, GetV get_val,
-				 M const &monoid, size_t table_size) {
+				 M const &monoid) {
+    size_t table_size = 1.5 * A.size();
     using T = typename slice<Iterator, Iterator>::value_type;
     using key_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_key(A[0]))>>;
     using val_type = decltype(get_val(A[0]));
@@ -296,8 +297,8 @@ auto collect_reduce(Seq const &A, Key const &get_key, Value const &get_value,
       }
     }
 
-    // now if there are any "heavy hitters" (buckets with a single key)
-    // insert them, using parallel reduce to sum them
+    // now if there is a "heavy hitter" (bucket with a single key)
+    // insert it using reduce to sum the values in parallel
     if (Heavy.size() > 0) {
       auto f = [&] (size_t i) -> val_type {
 	return get_val(Heavy[i]);
@@ -312,14 +313,14 @@ auto collect_reduce(Seq const &A, Key const &get_key, Value const &get_value,
 			   result_type(get_key(Heavy[0]), val));
     }
 
-    // pack non-empty entries of table
+    // pack non-empty entries of table into result sequence
     auto r = sequence<result_type>::uninitialized(count);
     size_t j = 0;
     for (size_t i = 0; i < table_size; i++) {
       if (flags[i])
 	move_uninitialized(r[j++], table[i]);
     }
-    // for efficiency, entries should be moved out already
+    // For efficiency. Entries should be moved out already.
     table.clear_uninitialized();
 
     assert(j == count);
@@ -342,9 +343,8 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   size_t n = A.size();
 
   if (n < 10000) 
-    return seq_collect_reduce_sparse(A, A.cut(0,0), hasheq, get_key, get_val, monoid,
-				     2*A.size());
-
+    return seq_collect_reduce_sparse(A, A.cut(0,0), hasheq, get_key, get_val, monoid);
+  
   // #bits is selected so each block fits into L3 cache
   //   assuming an L3 cache of size 1M per thread
   // the counting sort uses 2 x input size due to copy
@@ -367,32 +367,28 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
     integer_sort_r<std::false_type, std::true_type, std::true_type, std::true_type>(
       make_slice(A), make_slice(B), make_slice(Tmp), gb, bits, num_buckets, false);
   //t.next("integer sort");
-  
+
   Tmp.clear_uninitialized();  // Guy : needed to avoid destructing garbage
 
   size_t num_tables = gb.heavy_hitters ? num_buckets / 2 : num_buckets;
-  size_t bucket_size = (n - 1) / num_tables + 1;
-  float factor = 1.2;
-  if (bucket_size < 128000) factor += (17 - log2_up(bucket_size)) * .15;
-  size_t table_size = (factor * bucket_size);
-  size_t total_table_size = table_size * num_tables;
   
-  // now in parallel process each bucket sequentially
+  // now in parallel process each bucket sequentially, returning a packed sequence
+  // of the results within that bucket
   auto tables = sequence<sequence<result_type>>::from_function(num_tables, [&] (size_t i) {
       auto heavy = (gb.heavy_hitters ?
 		    B.cut(bucket_offsets[num_tables + i], bucket_offsets[num_tables + i + 1]) :
 		    B.cut(0,0));
       return seq_collect_reduce_sparse(B.cut(bucket_offsets[i],bucket_offsets[i+1]),
-				       heavy, hasheq, get_key, get_val, monoid,
-				       table_size);
-    }, 0);
+				       heavy, hasheq, get_key, get_val, monoid);
+    }, 1);
 
+  // based on sizes of each result, allocate offset in full result sequence
   auto sizes = tabulate(num_tables+1, [&] (size_t i) {
       return (i==num_tables) ? 0 : tables[i].size();});
   
   size_t total = scan_inplace(make_slice(sizes),addm<size_t>());
 
-  // move packed tables into contiguous result
+  // move partial result to full result based on offsets
   sequence<result_type> result = sequence<result_type>::uninitialized(total);
   auto copy_f = [&] (size_t i) {
     size_t d_offset = sizes[i];
