@@ -39,6 +39,7 @@
 #include <utility>
 
 #include "alloc.h"
+#include "destructive_move.h"
 #include "parallel.h"
 #include "range.h"
 #include "slice.h"
@@ -455,10 +456,7 @@ struct _sequence_base {
         auto n = size();
         auto dest_buffer = new_buffer.data();
         auto current_buffer = data();
-        parallel_for(0, n, [&](size_t i) {
-          initialize_explicit(dest_buffer + i, std::move(current_buffer[i]));
-          current_buffer[i].~value_type();
-        });
+        destructive_move_array(dest_buffer, current_buffer, n);
         
         // Destroy the old stuff
         if (!is_small()) {

@@ -45,6 +45,10 @@ add_dtests(NAME test_seq_scheduling FILES test_seq_scheduling.cpp LIBS parlay)
 
 add_dtests(NAME test_allocator FILES test_allocator.cpp LIBS parlay)
 
+# ----------------------------- Utilities ------------------------------
+
+add_dtests(NAME test_destructive_move FILES test_destructive_move.cpp LIBS parlay)
+
 # --------------------- External scheduler integration tests -------------------
 
 # Cilk integration test (requires a Cilk-compatible compiler)
