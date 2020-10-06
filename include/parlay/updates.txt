@@ -3,17 +3,19 @@ Major changes
 
 In quicksort, transpose, bucket_sort, sample_sort
 Fixed sort since it was core dumping due to double free, but no longer supports non-relocatable types, need to figure out a compromise that is fast and correct
+all changes marked as "tmpfix in comments".
 
 io.h
 by default it now does not null terminate chars_from_file 
-updated so can separatedly compile
+updated so can separately compile
 
 file_map.h
-added inline to swap so can multiply compile
+added inline to swap so can separately compile
 
 primitives.h
 got rid of const in map_tokens so function can modify the input string in place
 fixed type of out to && in pack_into
+fixed a bug in map_split_at (missing +1, and n for m)
 
 sequence.h
 passing granularity in from_function
@@ -22,10 +24,14 @@ added granularity in some parallel_fors
 added special case for is_small in copy constructor
 
 utilities.h
-put in copy_memory for now until properly fixed 
+put in copy_memory with include string.h for now until sort is fixed
 
 alloc.h
-added p_alloc, p_free (just alloc and free)
+added p_alloc, p_free (just alloc and free ussing parlay allocator)
 
 posix/file_map_impl_posix.h
 fixed assert around fstat
+
+
+Todo:
+better granularity control in parallel_fors in sequence.h
