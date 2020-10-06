@@ -43,14 +43,14 @@ void merge_sort_(slice<InIterator, InIterator> In,
     true);
 
     if (inplace) {
-      merge_into<move_tag>(Out.cut(0, m), Out.cut(m, n), In, f);
+      merge_into<move_assign_tag>(Out.cut(0, m), Out.cut(m, n), In, f);
     }
     else {
       if (levels == 1) {
         merge_into<uninitialized_move_tag>(In.cut(0, m), In.cut(m, n), Out, f);
       }
       else {
-        merge_into<move_tag>(In.cut(0, m), In.cut(m, n), Out, f);
+        merge_into<move_assign_tag>(In.cut(0, m), In.cut(m, n), Out, f);
       }
     }
   }

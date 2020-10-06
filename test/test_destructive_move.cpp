@@ -117,9 +117,9 @@ TEST(TestDestructiveMove, TestCustomTriviallyDestructiveMovable) {
 
 TEST(TestDestructiveMove, TestNotTriviallyDestructiveMovableArray) {
   constexpr size_t N = 100000;
-  std::aligned_storage<sizeof(NotTriviallyDestructiveMovable), alignof(NotTriviallyDestructiveMovable)>::type a[N], b[N];
-  NotTriviallyDestructiveMovable* from = std::launder(reinterpret_cast<NotTriviallyDestructiveMovable*>(&a));
-  NotTriviallyDestructiveMovable* to = std::launder(reinterpret_cast<NotTriviallyDestructiveMovable*>(&b));
+  std::vector<std::aligned_storage<sizeof(NotTriviallyDestructiveMovable), alignof(NotTriviallyDestructiveMovable)>::type> a(N), b(N);
+  NotTriviallyDestructiveMovable* from = std::launder(reinterpret_cast<NotTriviallyDestructiveMovable*>(a.data()));
+  NotTriviallyDestructiveMovable* to = std::launder(reinterpret_cast<NotTriviallyDestructiveMovable*>(b.data()));
   // -- Both from and to point to uninitialized memory
   
   for (size_t i = 0; i < N; i++) {
@@ -146,9 +146,9 @@ TEST(TestDestructiveMove, TestNotTriviallyDestructiveMovableArray) {
 
 TEST(TestDestructiveMove, TestTriviallyDestructiveMovableArray) {
   constexpr size_t N = 100000;
-  std::aligned_storage<sizeof(TriviallyDestructiveMovable), alignof(TriviallyDestructiveMovable)>::type a[N], b[N];
-  TriviallyDestructiveMovable* from = std::launder(reinterpret_cast<TriviallyDestructiveMovable*>(&a));
-  TriviallyDestructiveMovable* to = std::launder(reinterpret_cast<TriviallyDestructiveMovable*>(&b));
+  std::vector<std::aligned_storage<sizeof(TriviallyDestructiveMovable), alignof(TriviallyDestructiveMovable)>::type> a(N), b(N);
+  TriviallyDestructiveMovable* from = std::launder(reinterpret_cast<TriviallyDestructiveMovable*>(a.data()));
+  TriviallyDestructiveMovable* to = std::launder(reinterpret_cast<TriviallyDestructiveMovable*>(b.data()));
   // -- Both from and to point to uninitialized memory
   
   for (size_t i = 0; i < N; i++) {
@@ -173,9 +173,9 @@ TEST(TestDestructiveMove, TestTriviallyDestructiveMovableArray) {
 
 TEST(TestDestructiveMove, TestCustomTriviallyDestructiveMovableArray) {
   constexpr size_t N = 100000;
-  std::aligned_storage<sizeof(MyTriviallyDestructiveMovable), alignof(MyTriviallyDestructiveMovable)>::type a[N], b[N];
-  MyTriviallyDestructiveMovable* from = std::launder(reinterpret_cast<MyTriviallyDestructiveMovable*>(&a));
-  MyTriviallyDestructiveMovable* to = std::launder(reinterpret_cast<MyTriviallyDestructiveMovable*>(&b));
+  std::vector<std::aligned_storage<sizeof(MyTriviallyDestructiveMovable), alignof(MyTriviallyDestructiveMovable)>::type> a(N), b(N);
+  MyTriviallyDestructiveMovable* from = std::launder(reinterpret_cast<MyTriviallyDestructiveMovable*>(a.data()));
+  MyTriviallyDestructiveMovable* to = std::launder(reinterpret_cast<MyTriviallyDestructiveMovable*>(b.data()));
   // -- Both from and to point to uninitialized memory
   
   for (size_t i = 0; i < N; i++) {

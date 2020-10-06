@@ -45,6 +45,14 @@ auto map(R&& r, UnaryOp&& f) {
 }
 
 // Return a delayed sequence consisting of the elements
+//   f(0), f(1), ... f(n)
+template<typename F>
+auto delayed_tabulate(size_t n, F&& f) {
+  using T = decltype(f(n));
+  return delayed_seq<T, F>(n, std::forward<F>(f));
+}
+
+// Return a delayed sequence consisting of the elements
 //   f(r[0]), f(r[1]), ..., f(r[n-1])
 //
 // If r is a temporary, the delayed sequence will take
@@ -53,13 +61,15 @@ auto map(R&& r, UnaryOp&& f) {
 // r must remain alive as long as the delayed sequence.
 template<PARLAY_RANGE_TYPE R, typename UnaryOp>
 auto dmap(R&& r, UnaryOp&& f) {
+  using T = decltype(f(*std::begin(r)));
   size_t n = parlay::size(r);
-  return delayed_seq<typename std::remove_reference<
-                          typename std::remove_cv<
-                           decltype(f(std::declval<range_value_type_t<R>&>()))
-                           >::type>::type>
-     (n, [ r = std::forward<R>(r), f = std::forward<UnaryOp>(f) ]
+  return delayed_seq<T>(n, [ r = std::forward<R>(r), f = std::forward<UnaryOp>(f) ]
        (size_t i) { return f(std::begin(r)[i]); });
+}
+
+template<PARLAY_RANGE_TYPE R, typename UnaryOp>
+auto delayed_map(R&& r, UnaryOp&& f) {
+  return dmap(std::forward<R>(r), std::forward<UnaryOp>(f));
 }
 
 /* -------------------- Copying -------------------- */

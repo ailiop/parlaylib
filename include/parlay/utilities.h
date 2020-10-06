@@ -12,6 +12,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "destructive_move.h"
 #include "parallel.h"
 
 #ifdef PARLAY_DEBUG_UNINITIALIZED
@@ -191,66 +192,60 @@ inline size_t granularity(size_t n) {
   return (n > 100) ? static_cast<size_t>(ceil(pow(n, 0.5))) : 100;
 }
 
-/* For inplace sorting / merging, we need to move values around
-   rather than making copies. We use tag dispatch to choose between
-   moving and copying, so that the move algorithm can be written
-   agnostic to which one it uses */
+/* For inplace sorting / merging, we sometimes need to move values
+   around and sometimes we want to make copies. We use tag dispatch
+   to choose between moving and copying, so that the move algorithm
+   can be written agnostic to which one it uses. We also account for
+   moving / copying between uninitialized memory.
+   
+   Usage:
+     assign_dispatch(dest, val, tag_type())
 
-struct move_tag {};
+   Tag types:
+    move_assign_tag:           The value is moved assigned into dest from val
+    uninitialized_move_tag:    The value is move constructed from val into dest
+    copy_assign_tag:           The value is copy assigned into dest from val
+    uninitialized_copy_tag:    The value is copy constructed from val into dest
+    destructive_move_tag:      The value is destructively moved from val into dest
+   
+*/   
+
+struct move_assign_tag {};
 struct uninitialized_move_tag {};
-struct copy_tag {};
+struct copy_assign_tag {};
 struct uninitialized_copy_tag {};
+struct destructive_move_tag {};
 
 // Move dispatch -- move val into dest
 template<typename T>
-void assign_dispatch(T& val, T& dest, move_tag) {
+void assign_dispatch(T& dest, T& val, move_assign_tag) {
   dest = std::move(val);
 }
 
 // Copy dispatch -- copy val into dest
 template<typename T>
-void assign_dispatch(const T& val, T& dest, copy_tag) {
+void assign_dispatch(T& dest, const T& val, copy_assign_tag) {
   dest = val;
 }
 
 // Uninitialized move dispatch -- move construct dest with val
 template<typename T>
-void assign_dispatch(T& val, T& dest, uninitialized_move_tag) {
+void assign_dispatch(T& dest, T& val, uninitialized_move_tag) {
   assign_uninitialized(dest, std::move(val));
 }
 
 // Uninitialized copy dispatch -- copy initialize dest with val
 template<typename T>
-void assign_dispatch(const T& val, T& dest, uninitialized_copy_tag) {
+void assign_dispatch(T& dest, const T& val, uninitialized_copy_tag) {
   assign_uninitialized(dest, val);
 }
 
-/* Tag-dispatch-based assignment that selects between
-   initialized/uninitialized copies/moves.
-   
-   param 3 = std::true_type if a copy should be made, otherwise moves
-   param 4 = std::true_type if the destination is uninitialized
-*/
-
+// Destructive move dispatch -- destructively move val into dest
 template<typename T>
-void assign_dispatch(T& dest, T& val, /* move */ std::false_type, /* initialized */ std::false_type) {
-  dest = std::move(val);
+void assign_dispatch(T& dest, T& val, destructive_move_tag) {
+  destructive_move(&dest, &val);
 }
 
-template<typename T>
-void assign_dispatch(T& dest, T& val, /* move */ std::false_type, /* uninitialized */ std::true_type) {
-  assign_uninitialized(dest, std::move(val));
-}
-
-template<typename T>
-void assign_dispatch(T& dest, const T& val, /* copy */ std::true_type, /* initialized */ std::false_type) {
-  dest = val;
-}
-
-template<typename T>
-void assign_dispatch(T& dest, const T& val, /* copy */ std::true_type, /* uninitialized */ std::true_type) {
-  assign_uninitialized(dest, val);
-}
 
 }  // namespace parlay
 
