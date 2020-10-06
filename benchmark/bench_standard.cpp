@@ -158,20 +158,14 @@ static void bench_count_sort(benchmark::State& state) {
   size_t n = state.range(0);
   size_t bits = state.range(1);
   parlay::random r(0);
-  size_t num_buckets = (1<<bits);
+  size_t num_buckets = (1 << bits);
   size_t mask = num_buckets - 1;
   auto in = parlay::tabulate(n, [&] (size_t i) -> T {return r.ith_rand(i);});
-  parlay::sequence<T> out(n);
-  auto f = [&] (size_t i) {return in[i] & mask;};
-  auto keys = parlay::delayed_seq<unsigned char>(n, f);
+  auto get_key = [&] (const T& t) {return t & mask;};
+
   
   for (auto _ : state) {
-    parlay::internal::count_sort<std::true_type, std::false_type>(
-      parlay::make_slice(in),
-      parlay::make_slice(out),
-      parlay::make_slice(keys.begin(),keys.end()),
-      num_buckets
-    );
+    parlay::internal::count_sort(parlay::make_slice(in), get_key, num_buckets);
   }
 }
 
