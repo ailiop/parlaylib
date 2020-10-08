@@ -11,7 +11,6 @@
 #include "quicksort.h"
 #include "uninitialized_sequence.h"
 
-#include "../destructive_move.h"
 #include "../delayed_sequence.h"
 #include "../slice.h"
 #include "../utilities.h"
@@ -53,8 +52,7 @@ void seq_radix_sort_(slice<InIterator, InIterator> In,
       auto get_key = [&](size_t i) -> size_t {
         return (g(Out[i]) >> bit_offset) & mask;
       };
-      seq_count_sort_<destructive_move_tag>(Out, In, delayed_seq<size_t>(n, get_key), counts,
-                      num_buckets);
+      seq_count_sort_<uninitialized_relocate_tag>(Out, In, delayed_seq<size_t>(n, get_key), counts, num_buckets);
     }
     
     else {
@@ -62,7 +60,7 @@ void seq_radix_sort_(slice<InIterator, InIterator> In,
         return (g(In[i]) >> bit_offset) & mask;
       };
 
-      seq_count_sort_<destructive_move_tag>(In, Out, delayed_seq<size_t>(n, get_key), counts, num_buckets);
+      seq_count_sort_<uninitialized_relocate_tag>(In, Out, delayed_seq<size_t>(n, get_key), counts, num_buckets);
       
     }
                     
@@ -72,10 +70,10 @@ void seq_radix_sort_(slice<InIterator, InIterator> In,
   }
   
   if (swapped && inplace) {
-    destructive_move_slice(In, Out);
+    uninitialized_relocate_n(In.begin(), Out.begin(), In.size());
   }
   else if (!swapped && !inplace) {
-    destructive_move_slice(Out, In);
+    uninitialized_relocate_n(Out.begin(), In.begin(), Out.size());
   }
 }
 
@@ -89,7 +87,7 @@ void seq_radix_sort(slice<InIterator, InIterator> In,
                     GetKey const &g,
                     size_t key_bits) {
   if constexpr (inplace_tag::value == true) {
-    static_assert(std::is_same_v<assignment_tag, destructive_move_tag>);
+    static_assert(std::is_same_v<assignment_tag, uninitialized_relocate_tag>);
     seq_radix_sort_(In, Out, g, key_bits, true);
   }
   else {
@@ -99,8 +97,8 @@ void seq_radix_sort(slice<InIterator, InIterator> In,
       // We could just use assign_dispatch(Tmp[i], In[i]) for each i, but we
       // can optimize better by calling destructive_move_slice, since this
       // has the ability to memcpy multiple elements at once
-      if constexpr (std::is_same_v<assignment_tag, destructive_move_tag>) {
-        destructive_move_slice(Tmp, In);
+      if constexpr (std::is_same_v<assignment_tag, uninitialized_relocate_tag>) {
+        uninitialized_relocate_n(Tmp.begin(), In.begin(), Tmp.size());
       }
       else {
         for (size_t i = 0; i < n; i++)
@@ -108,8 +106,8 @@ void seq_radix_sort(slice<InIterator, InIterator> In,
       }
       seq_radix_sort_(Tmp, Out, g, key_bits, false);
     } else {
-      if constexpr (std::is_same_v<assignment_tag, destructive_move_tag>) {
-        destructive_move_slice(Out, In);
+      if constexpr (std::is_same_v<assignment_tag, uninitialized_relocate_tag>) {
+        uninitialized_relocate_n(Out.begin(), In.begin(), Out.size());
       }
       else {
         for (size_t i = 0; i < n; i++)
@@ -129,11 +127,11 @@ void seq_radix_sort(slice<InIterator, InIterator> In,
 // output of the sort will be written into Out. Furthermore, if inplace_tag is std::true_type,
 // then Tmp must point to the same range as In
 //
-// assignment_tag must be one of uninitialized_copy_tag or destructive_move_tag. This indicates
+// assignment_tag must be one of uninitialized_copy_tag or uninitialized_relocate_tag. This indicates
 // the manner in which the input is moved from In to Out. If inplace_tag is std::true_type,
-// then this must always be destructive_move_tag. If inplace_tag is std::false_type, then
+// then this must always be uninitialized_relocate_tag. If inplace_tag is std::false_type, then
 // assignment_tag can be either uninitialized_copy_tag, if the input is to be copied from
-// In to Out, or destructive_move_tag if the input is to be (destructively) moved from In to
+// In to Out, or uninitialized_relocate_tag if the input is to be (destructively) moved from In to
 // Out.
 //
 template <typename inplace_tag, typename assignment_tag,
@@ -154,7 +152,7 @@ sequence<size_t> integer_sort_r(slice<InIterator, InIterator> In,
   //  - If inplace_tag is std::true_type, then In contains the sorted results
   //  - If inplace_tag is std::false_type and assignment_tag is uninitialized_copy_tag,
   //    then In contains the original unmodified input
-  //  - If inplace_tag is std::false_type and assignment_tag is destructive_move_tag, then
+  //  - If inplace_tag is std::false_type and assignment_tag is uninitialized_relocate_tag, then
   //    In points to uninitialized memory
   //
   // Parameter Out
@@ -169,7 +167,7 @@ sequence<size_t> integer_sort_r(slice<InIterator, InIterator> In,
   //  - If inplace_tag is std::true_type, then Tmp points to the same range as In
   //  - If inplace_tag is std::false_type and assignment_tag is uninitialized_copy_tag,
   //    then Tmp points to uninitialized memory
-  //  - If inplace_tag is std::false_type and assignment_tag is destructive_move_tag,
+  //  - If inplace_tag is std::false_type and assignment_tag is uninitialized_relocate_tag,
   //    then Tmp points to the same range as In
   //  [Postconditions]
   //  - If Tmp does not point to the same range as In, then it points to uninitialized memory
@@ -180,11 +178,11 @@ sequence<size_t> integer_sort_r(slice<InIterator, InIterator> In,
   static_assert(std::is_same_v<range_value_type_t<slice<InIterator, InIterator>>,
                                range_value_type_t<slice<TmpIterator, TmpIterator>>>);
                                
-  // assignment_type can only be one of uninitialized_copy_tag or destructive_move_tag
-  static_assert(std::is_same_v<assignment_tag, uninitialized_copy_tag> || std::is_same_v<assignment_tag, destructive_move_tag>);
+  // assignment_type can only be one of uninitialized_copy_tag or uninitialized_relocate_tag
+  static_assert(std::is_same_v<assignment_tag, uninitialized_copy_tag> || std::is_same_v<assignment_tag, uninitialized_relocate_tag>);
   
   // assignment_tag is only allowed to be uninitialized_copy_tag if inplace_tag is std::false type
-  static_assert(inplace_tag::value == false || std::is_same_v<assignment_tag, destructive_move_tag>);
+  static_assert(inplace_tag::value == false || std::is_same_v<assignment_tag, uninitialized_relocate_tag>);
   
 
   using T = typename slice<InIterator, InIterator>::value_type;
@@ -203,14 +201,14 @@ sequence<size_t> integer_sort_r(slice<InIterator, InIterator> In,
     // If the sort is not inplace, the final result needs to
     // be moved into Out since it is currently in In.
     if constexpr (inplace_tag::value == false) {
-      
+
       // We could just do a parallel for loop and copy/move the elements from
       // In to Out using assign_dispatch(Out[i], In[i], assignment_tag()), but
       // this would not allow us to take advantage of the possibly more efficient
-      // destructive_move_slice, which can memcpy multiple elements at a time
+      // uninitialized_relocate_n, which can memcpy multiple elements at a time
       // to save on performing every copy individually.
-      if constexpr (std::is_same_v<assignment_tag, destructive_move_tag>) {
-        destructive_move_slice(Out, In);           // Move from In[i] to Out[i] and destroy In[i]
+      if constexpr (std::is_same_v<assignment_tag, uninitialized_relocate_tag>) {
+        uninitialized_relocate_n(Out.begin(), In.begin(), Out.size());
       }
       else {
         parallel_for(0, In.size(), [&](size_t i) {
@@ -238,7 +236,7 @@ sequence<size_t> integer_sort_r(slice<InIterator, InIterator> In,
 
     if constexpr (inplace_tag::value == true) {
       if (!one_bucket) {
-        destructive_move_slice(In, Out);
+        uninitialized_relocate_n(In.begin(), Out.begin(), In.size());
       }
     }
     
@@ -282,7 +280,7 @@ sequence<size_t> integer_sort_r(slice<InIterator, InIterator> In,
           auto b = Tmp.cut(start, end);
           sequence<size_t> r;
 
-          r = integer_sort_r<typename std::negation<inplace_tag>::type, destructive_move_tag>(
+          r = integer_sort_r<typename std::negation<inplace_tag>::type, uninitialized_relocate_tag>(
             a, b, a, g, shift_bits, num_inner_buckets, (parallelism * (end - start)) / (n + 1));
 
           if (return_offsets) {
@@ -330,7 +328,7 @@ void integer_sort_inplace(slice<Iterator, Iterator> In,
                           Get_Key const &g, size_t bits = 0) {
   using value_type = typename slice<Iterator, Iterator>::value_type;
   auto Tmp = internal::uninitialized_sequence<value_type>(In.size());
-  integer_sort_<std::true_type, destructive_move_tag>(In, make_slice(Tmp), In, g, bits, 0);
+  integer_sort_<std::true_type, uninitialized_relocate_tag>(In, make_slice(Tmp), In, g, bits, 0);
 }
 
 

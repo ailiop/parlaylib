@@ -103,7 +103,7 @@ public:
 
   // Allocate n elements across however many lists are needed (rounded up)
   void reserve(size_t n) {
-    size_t num_lists = thread_count + ceil(n / (double)list_length);
+    size_t num_lists = thread_count + (n + list_length - 1) / list_length;
     char* start = allocate_blocks(list_length*num_lists);
     parallel_for(0, num_lists, [&] (size_t i) {
       block_p offset = reinterpret_cast<block_p>(start + i * list_length * block_size_);

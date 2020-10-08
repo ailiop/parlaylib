@@ -6,7 +6,6 @@
 #include <cstdint>
 
 #include <tuple>
-#include <type_traits>
 
 #include "delayed_sequence.h"
 #include "parallel.h"

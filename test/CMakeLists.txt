@@ -48,7 +48,7 @@ add_dtests(NAME test_allocator FILES test_allocator.cpp LIBS parlay)
 
 # ----------------------------- Utilities ------------------------------
 
-add_dtests(NAME test_destructive_move FILES test_destructive_move.cpp LIBS parlay)
+add_dtests(NAME test_relocate FILES test_relocate.cpp LIBS parlay)
 
 # --------------------- External scheduler integration tests -------------------
 

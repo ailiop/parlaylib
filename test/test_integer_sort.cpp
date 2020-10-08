@@ -24,7 +24,7 @@ TEST(TestIntegerSort, TestUninitialized) {
 namespace parlay {
   // Specialize std::unique_ptr to be considered trivially destructive movable
   template<typename T>
-  struct is_trivially_destructive_movable<std::unique_ptr<T>> : public std::true_type { };
+  struct is_trivially_relocatable<std::unique_ptr<T>> : public std::true_type { };
 }
 
 TEST(TestIntegerSort, TestIntegerSortInplaceUniquePtr) {
@@ -71,9 +71,9 @@ struct HeapInt {
 };
 
 namespace parlay {
-  // Specialize std::unique_ptr to be considered trivially destructive movable
+  // Specialize std::unique_ptr to be considered trivially relocatable
   template<>
-  struct is_trivially_destructive_movable<HeapInt> : public std::true_type { };
+  struct is_trivially_relocatable<HeapInt> : public std::true_type { };
 }
 
 TEST(TestIntegerSort, TestIntegerSortCopyAndDestructiveMove) {

@@ -12,7 +12,6 @@
 #include "transpose.h"
 #include "uninitialized_sequence.h"
 
-#include "../destructive_move.h"
 #include "../utilities.h"
 
 
@@ -205,7 +204,7 @@ std::pair<sequence<size_t>, bool> count_sort_(slice<InIterator, InIterator> In,
 // Values are transferred from In to Out as per the type of assignment_tag.
 // E.g. If assignment_tag is parlay::copy_assign_tag, values are copied,
 // if it is parlay::uninitialized_move_tag, they are moved assuming that
-// Out is uninitialized, etc. assignment_tag can be destructive_move_tag,
+// Out is uninitialized, etc. assignment_tag can be uninitialized_relocate_tag,
 // in which case the inputs are destructively moved, leaving the input
 // as uninitialized memory that must not be destroyed.
 template <typename assignment_tag, typename InIterator, typename OutIterator, typename KeyIterator>
@@ -241,8 +240,8 @@ auto count_sort_inplace(slice<InIterator, InIterator> In, GetKey get_key, size_t
   using value_type = typename slice<InIterator, InIterator>::value_type;
   auto Keys = delayed_seq<decltype(get_key(*In.begin()))>(In.size(), [&](size_t i) { return get_key(In[i]); });
   auto Tmp = uninitialized_sequence<value_type>(In.size());
-  auto a = count_sort<destructive_move_tag>(In, make_slice(Tmp), make_slice(Keys), num_buckets);
-  destructive_move_slice(In, make_slice(Tmp));
+  auto a = count_sort<uninitialized_relocate_tag>(In, make_slice(Tmp), make_slice(Keys), num_buckets);
+  uninitialized_relocate_n(In.begin(), Tmp.begin(), In.size());
   return a.first;
 }
 

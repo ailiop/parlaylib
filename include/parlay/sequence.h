@@ -39,10 +39,11 @@
 #include <utility>
 
 #include "alloc.h"
-#include "destructive_move.h"
 #include "parallel.h"
 #include "range.h"
 #include "slice.h"
+#include "type_traits.h"
+#include "utilities.h"
 
 #ifdef PARLAY_DEBUG_UNINITIALIZED
 #include "internal/debug_uninitialized.h"
@@ -456,7 +457,7 @@ struct _sequence_base {
         auto n = size();
         auto dest_buffer = new_buffer.data();
         auto current_buffer = data();
-        destructive_move_array(dest_buffer, current_buffer, n);
+        uninitialized_relocate_n_a(dest_buffer, current_buffer, n, *this);
         
         // Destroy the old stuff
         if (!is_small()) {
@@ -1141,6 +1142,17 @@ template<typename R>
 inline auto to_sequence(R&& r) -> sequence<range_value_type_t<R>> {
   return {std::begin(r), std::end(r)};
 }
+
+// Mark sequences as trivially relocatable. A sequence is always
+// trivially relocatable as long as the allocator is, because:
+//  1) Sequences only use small-size optimization when the element
+//     type is trivial, so the buffer of trivial elements is
+//     trivially relocatable.
+//  2) Sequences that are not small-size optimized are just a
+//     pointer/length pair, which are trivially relocatable
+template<typename T, typename Alloc>
+struct is_trivially_relocatable<parlay::sequence<T, Alloc>>
+    : std::bool_constant<is_trivially_relocatable_v<Alloc>> {};
 
 }  // namespace parlay
 

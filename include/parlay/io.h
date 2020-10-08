@@ -221,7 +221,7 @@ inline unsigned long long chars_to_ulong_long(const sequence<char>& s) { return 
 
 inline float chars_to_float(const sequence<char>& s) {
   return internal::chars_to_float_t<float, 10, 10, 24>(s, [](const auto& str) {
-    return std::stod(std::string(std::begin(str), std::end(str))); });
+    return std::stof(std::string(std::begin(str), std::end(str))); });
 }
 
 inline double chars_to_double(const sequence<char>& s) {
