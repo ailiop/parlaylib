@@ -799,10 +799,11 @@ auto map_split_at(const Range& R, const BoolRange& flags, UnaryOp f) {
   assert(Flags.size() == n);
 
   sequence<size_t> Locations = pack_index<size_t>(Flags);
+  size_t m = Locations.size();
 
-  return tabulate(Locations.size(), [&] (size_t i) {
+  return tabulate(m + 1, [&] (size_t i) {
     size_t start = (i==0) ? 0 : Locations[i-1] + 1;
-    size_t end = (i==n) ? n : Locations[i];
+    size_t end = (i==m) ? n : Locations[i];
     return f(S.cut(start, end)); });
 }
 

@@ -200,11 +200,11 @@ struct hasheq_mask_low {
 
 template <typename Seq, class Key, class Value, typename M>
 auto collect_reduce(Seq const &A, Key const &get_key, Value const &get_value,
-                    M const &monoid, size_t num_buckets)
-    -> sequence<decltype(get_value(A[0]))> {
+                    M const &monoid, size_t num_buckets) {
+  //-> sequence<decltype(get_value(A[0]))> {
   using T = typename Seq::value_type;
-  using key_type = decltype(get_key(A[0]));
-  using val_type = decltype(get_value(A[0]));
+  using key_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_key(A[0]))>>;
+  using val_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_value(A[0]))>>;
   size_t n = A.size();
 
   // #bits is selected so each block fits into L3 cache
@@ -273,9 +273,9 @@ auto collect_reduce(Seq const &A, Key const &get_key, Value const &get_value,
 				 HashEq hasheq, GetK get_key, GetV get_val,
 				 M const &monoid) {
     size_t table_size = 1.5 * A.size();
-    using T = typename slice<Iterator, Iterator>::value_type;
+    //using T = typename slice<Iterator, Iterator>::value_type;
     using key_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_key(A[0]))>>;
-    using val_type = decltype(get_val(A[0]));
+    using val_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_val(A[0]))>>;
     using result_type = std::pair<key_type,val_type>;
 
     size_t count=0;
@@ -337,7 +337,7 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   //timer t;
   using T = typename slice<Iterator, Iterator>::value_type;
   using key_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_key(A[0]))>>;
-  using val_type = decltype(get_val(A[0]));
+  using val_type = typename std::remove_cv_t<std::remove_reference_t<decltype(get_val(A[0]))>>;
   using result_type = std::pair<key_type,val_type>;
   
   size_t n = A.size();
@@ -424,8 +424,6 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
 	    typename Equal = std::equal_to<typename range_value_type_t<R>::first_type>>
   auto group_by_and_combine(R const &A, Monoid const &monoid,
 			    Hash hash = {}, Equal equal = {}) { 
-    using P = range_value_type_t<R>;
-    
     auto get_key = [] (const auto& a) {return a.first;};
     auto get_val = [] (const auto& a) {return a.second;};
     return collect_reduce_sparse(make_slice(A), hasheq(hash,equal),
@@ -458,8 +456,6 @@ auto collect_reduce_sparse(slice<Iterator,Iterator> A,
   auto group_by_and_combine_by_bucket(R const &A, size_t num_buckets,
 				      Monoid const &monoid,
 				      Hash hash = {}, Equal equal = {}) { 
-    using P = range_value_type_t<R>;
-    
     auto get_key = [] (const auto& a) {return a.first;};
     auto get_val = [] (const auto& a) {return a.second;};
     return collect_reduce(make_slice(A), get_key, get_val, monoid, num_buckets);
