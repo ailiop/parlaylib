@@ -140,11 +140,12 @@ public:
     initialized = true;
   }
 
-  void clear() {
-    if (num_used_blocks() > 0) 
-      std::cout << "Warning: not clearing memory pool, block_size=" << block_size()
-	   << " : allocated blocks remain" << std::endl;
-    else {
+  bool clear() {
+    if (num_used_blocks() > 0) {
+      //std::cout << "Warning: not clearing memory pool, block_size=" << block_size()
+      //   << " : " << num_used_blocks() << " allocated blocks remain" << std::endl;
+      return true; 
+    } else {
       // clear lists
       for (int i = 0; i < thread_count; ++i) 
         local_lists[i].sz = 0;
@@ -155,12 +156,12 @@ public:
       pool_roots.clear();
       global_stack.clear();
       blocks_allocated.store(0);
+      return false;
     }
   }
 
   ~block_allocator() {
-    clear();
-    delete[] local_lists;
+    if (!clear()) delete[] local_lists;
   }
 
   void free(void* ptr) {
