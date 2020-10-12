@@ -9,11 +9,10 @@
 //
 // Q: What on earth is the purpose of such a container??
 // A: Its purpose is to be used as temporary storage for out of place algorithms
-//    that use destructive_move. Since the container begins in an uninitialized
-//    state, it is valid to destructive_move objects into it, and then
-//    destructive_move them back out. This leaves the elements uninitialized,
-//    so that no destructors will accidentally be triggered for destrucively
-//    moved-out-of objects.
+//    that use uninitialized_relocate. Since the container begins in an uninitialized
+//    state, it is valid to uninitialized_relocate objects into it, and then
+//    uninitialized_relocate them back out. This leaves the elements uninitialized,
+//    so that no destructors will accidentally be triggered for moved-out-of objects.
 //
 
 #ifndef PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE
@@ -72,21 +71,31 @@ class uninitialized_sequence {
  public:
   explicit uninitialized_sequence(size_t n, const allocator_type& alloc = {})
            : impl(n, alloc) {
-
-    // If uninitialized memory debugging is turned on, make sure that
-    // a buffer of UninitializedTracker is appropriately set to its
-    // uninitialized state by creating and immediately destroying.
 #ifdef PARLAY_DEBUG_UNINITIALIZED
+    // If uninitialized memory debugging is turned on, make sure that
+    // each object of type UninitializedTracker is appropriately set
+    // to its uninitialized state.
     if constexpr (std::is_same_v<value_type, UninitializedTracker>) {
       auto buffer = impl.data;
       parallel_for(0, n, [&](size_t i) {
-        std::allocator_traits<allocator_type>::construct(impl, &buffer[i]);
-        std::allocator_traits<allocator_type>::destroy(impl, &buffer[i]);
+        buffer[i].initialized = false;
       });
     }
 #endif
   }
-           
+
+#ifdef PARLAY_DEBUG_UNINITIALIZED
+  // If uninitialized memory debugging is turned on, make sure that
+  // each object of type UninitializedTracker is destroyed or still
+  // uninitialized by the time this sequence is destroyed
+  ~uninitialized_sequence() {
+    auto buffer = impl.data;
+    parallel_for(0, impl.n, [&](size_t i) {
+      PARLAY_ASSERT_UNINITIALIZED(buffer[i]);
+    });
+  }
+#endif
+
   iterator begin() { return impl.data; }
   iterator end() { return impl.data + impl.n; }
 

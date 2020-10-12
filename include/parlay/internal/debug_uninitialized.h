@@ -22,18 +22,26 @@ namespace internal {
 // someone comes along and wants to do an uninitialized
 // in place construction at that memory location.
 //
+// Some compiler or debugging tool might automatically
+// fill the memory owned by a destroyed object with some
+// detectable state for their own debugging purposes. This
+// would break this class if that ever happens.
+//
 // For correctness, this type should only ever be used
-// from an uninitialized state if it was allocated inside
-// a parlay::sequence or parlay::uninitialized_sequence,
-// since they need to appropriately
+// if its memory is allocated inside a parlay::sequence
+// or parlay::uninitialized_sequence since they know how
+// to set the initialized/uninitialized flag
 struct UninitializedTracker {
 
   UninitializedTracker() : x(0), initialized(true) {}
 
-  UninitializedTracker(int _x) : x(_x), initialized(true) {}
+  // cppcheck-suppress noExplicitConstructor
+  /* implicit */ UninitializedTracker(int _x) : x(_x), initialized(true) {}
 
-  UninitializedTracker(const UninitializedTracker &other) : x(other.x), initialized(true) {
+  UninitializedTracker(const UninitializedTracker &other) {
     assert(other.initialized && "Attempting to copy an uninitialized object!");
+    x = other.x;
+    initialized = true;
   }
 
   UninitializedTracker &operator=(const UninitializedTracker &other) {
@@ -97,7 +105,7 @@ do {                                                                            
 // memory that is not managed by one of these containers.
 #define PARLAY_ASSERT_INITIALIZED(x)                                                         \
 do {                                                                                         \
-  using PARLAY_AI_T = std::remove_cv_t<std::remove_reference_t<decltype(x)>>                 \
+  using PARLAY_AI_T = std::remove_cv_t<std::remove_reference_t<decltype(x)>>;                \
   if constexpr (std::is_same_v<PARLAY_AI_T, ::parlay::internal::UninitializedTracker>) {     \
     assert((x).initialized && "Memory required to be initialized is uninitialized!");        \
   }                                                                                          \

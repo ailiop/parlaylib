@@ -45,7 +45,9 @@
 #include "type_traits.h"      // IWYU pragma: keep  // for is_trivially_relocatable
 #include "utilities.h"
 
+#ifdef PARLAY_DEBUG_UNINITIALIZED
 #include "internal/debug_uninitialized.h"
+#endif
 
 namespace parlay {
 
@@ -531,8 +533,17 @@ class sequence : protected _sequence_base<T, Allocator> {
     return *this;
   }
 
-  // destroys all elements and frees all memory
-  ~sequence() { };
+#ifdef PARLAY_DEBUG_UNINITIALIZED
+  // If uninitialized memory debugging is turned on, make sure that
+  // each object of type UninitializedTracker has been initialized
+  // since we are about to run their destructors!
+  ~sequence() {
+    auto buffer = impl.data();
+    parallel_for(0, size(), [&](size_t i) {
+      PARLAY_ASSERT_INITIALIZED(buffer[i]);
+    });
+  }
+#endif
 
   iterator begin() { return impl.data(); }
   iterator end() { return impl.data() + impl.size(); }
@@ -939,8 +950,8 @@ class sequence : protected _sequence_base<T, Allocator> {
     if constexpr (std::is_same_v<value_type, internal::UninitializedTracker>) {
       auto buffer = impl.data();
       parallel_for(0, n, [&](size_t i) {
-        impl.initialize(&buffer[i]);
-        impl.destroy(&buffer[i]);
+        buffer[i].initialized = false;
+        PARLAY_ASSERT_UNINITIALIZED(buffer[i]);
       });
     }
 #endif
