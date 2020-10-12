@@ -3,6 +3,7 @@
 #define PARLAY_QUICKSORT_H_
 
 #include <algorithm>
+#include <new>
 #include <utility>
 
 #include "sequence_ops.h"

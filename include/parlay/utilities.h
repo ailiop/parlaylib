@@ -19,9 +19,7 @@
 #include "parallel.h"
 #include "type_traits.h"
 
-#ifdef PARLAY_DEBUG_UNINITIALIZED
 #include "internal/debug_uninitialized.h"
-#endif  // PARLAY_DEBUG_UNINITIALIZED
 
 namespace parlay {
 
@@ -67,37 +65,23 @@ const flags fl_inplace = 16;
 
 template <typename T>
 inline void assign_uninitialized(T& a, const T& b) {
-#ifdef PARLAY_DEBUG_UNINITIALIZED
-  if constexpr (std::is_same_v<T, debug_uninitialized>) {
-    // Ensure that a is uninitialized
-    assert(a.x == -1 && "Assigning to initialized memory with assign_uninitialized");
-  }
-#endif  // PARLAY_DEBUG_UNINITIALIZED
+  PARLAY_ASSERT_UNINITIALIZED(a);
   new (static_cast<T*>(std::addressof(a))) T(b);
 }
 
 template <typename T>
 inline auto assign_uninitialized(T& a, T&& b) -> typename std::enable_if_t<std::is_rvalue_reference_v<T&&>> {
-#ifdef PARLAY_DEBUG_UNINITIALIZED
-  if constexpr (std::is_same_v<T, debug_uninitialized>) {
-    // Ensure that a is uninitialized
-    assert(a.x == -1 && "Assigning to initialized memory with assign_uninitialized");
-  }
-#endif  // PARLAY_DEBUG_UNINITIALIZED
+  PARLAY_ASSERT_UNINITIALIZED(a);
   new (static_cast<T*>(std::addressof(a))) T(std::move(b));  // NOLINT: b is guaranteed to be an rvalue reference
 }
 
 template <typename T>
 inline void move_uninitialized(T& a, T& b) {
-#ifdef PARLAY_DEBUG_UNINITIALIZED
-  if constexpr (std::is_same_v<T, debug_uninitialized>) {
-    // Ensure that a is uninitialized
-    assert(a.x == -1 && "Assigning to initialized memory with move_uninitialized");
-  }
-#endif  // PARLAY_DEBUG_UNINITIALIZED
+  PARLAY_ASSERT_UNINITIALIZED(a);
   new (static_cast<T*>(std::addressof(a))) T(std::move(b));
 }
 
+/* Hashing functions for various integer types */
 
 // a 32-bit hash function
 inline uint32_t hash32(uint32_t a) {
@@ -148,6 +132,7 @@ inline uint64_t hash64_2(uint64_t x) {
   return x;
 }
 
+/* Atomic write-add, write-min, and write-max */
 
 template <typename T, typename EV>
 inline void write_add(std::atomic<T>* a, EV b) {
@@ -247,8 +232,8 @@ inline size_t granularity(size_t n) {
    and otherwise, will fall back to the generic approach.
 */
 
-// Relocate a single object into uninitlialized memory, leaving
-// the source memory uninitlialized afterwards.
+// Relocate a single object into uninitialized memory, leaving
+// the source memory uninitialized afterwards.
 template<typename T>
 inline void uninitialized_relocate(T* to, T* from) noexcept(is_nothrow_relocatable<T>::value) {
   if constexpr (is_trivially_relocatable<T>::value) {
@@ -257,8 +242,10 @@ inline void uninitialized_relocate(T* to, T* from) noexcept(is_nothrow_relocatab
   else {
     static_assert(std::is_move_constructible<T>::value);
     static_assert(std::is_destructible<T>::value);
+    PARLAY_ASSERT_UNINITIALIZED(*to);
     ::new (to) T(std::move(*from));
     from->~T();
+    PARLAY_ASSERT_UNINITIALIZED(*from);
   }
 }
 
@@ -316,8 +303,10 @@ inline void uninitialized_relocate_n_a(It1 to, It2 from, size_t n, Alloc& alloc)
     static_assert(std::is_move_constructible<T>::value);
     static_assert(std::is_destructible<T>::value);
     parallel_for(0, n, [&](size_t i) {
+      PARLAY_ASSERT_UNINITIALIZED(to[i]);
       std::allocator_traits<Alloc>::construct(alloc, std::addressof(to[i]), std::move(from[i]));
       std::allocator_traits<Alloc>::destroy(alloc, std::addressof(from[i]));
+      PARLAY_ASSERT_UNINITIALIZED(from[i]);
     });
   }
   // The worst case. No parallelism and no fast relocation.
@@ -325,8 +314,10 @@ inline void uninitialized_relocate_n_a(It1 to, It2 from, size_t n, Alloc& alloc)
     static_assert(std::is_move_constructible<T>::value);
     static_assert(std::is_destructible<T>::value);
     for (size_t i = 0; i < n; i++) {
+      PARLAY_ASSERT_UNINITIALIZED(*to);
       std::allocator_traits<Alloc>::construct(alloc, std::addressof(*to), std::move(*from));
       std::allocator_traits<Alloc>::destroy(alloc, std::addressof(*from));
+      PARLAY_ASSERT_UNINITIALIZED(*from);
       to++;
       from++;
     }

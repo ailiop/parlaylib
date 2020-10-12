@@ -24,6 +24,8 @@
 
 #include "../alloc.h"
 
+#include "debug_uninitialized.h"
+
 namespace parlay {
 namespace internal {
   
@@ -69,7 +71,21 @@ class uninitialized_sequence {
 
  public:
   explicit uninitialized_sequence(size_t n, const allocator_type& alloc = {})
-           : impl(n, alloc) { }
+           : impl(n, alloc) {
+
+    // If uninitialized memory debugging is turned on, make sure that
+    // a buffer of UninitializedTracker is appropriately set to its
+    // uninitialized state by creating and immediately destroying.
+#ifdef PARLAY_DEBUG_UNINITIALIZED
+    if constexpr (std::is_same_v<value_type, UninitializedTracker>) {
+      auto buffer = impl.data;
+      parallel_for(0, n, [&](size_t i) {
+        std::allocator_traits<allocator_type>::construct(impl, &buffer[i]);
+        std::allocator_traits<allocator_type>::destroy(impl, &buffer[i]);
+      });
+    }
+#endif
+  }
            
   iterator begin() { return impl.data; }
   iterator end() { return impl.data + impl.n; }

@@ -13,7 +13,7 @@
 #include "sorting_utils.h"
 
 TEST(TestIntegerSort, TestUninitialized) {
-  auto s = parlay::sequence<parlay::debug_uninitialized>::uninitialized(10000000);
+  auto s = parlay::sequence<parlay::internal::UninitializedTracker>(10000000);
   parlay::parallel_for(0, 10000000, [&](size_t i) {
     s[i].x = (50021 * i + 61) % (1 << 20);
   });
