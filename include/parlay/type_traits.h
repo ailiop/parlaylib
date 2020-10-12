@@ -16,7 +16,10 @@
 #ifndef PARLAY_TYPE_TRAITS_H
 #define PARLAY_TYPE_TRAITS_H
 
+#include <cstddef>
+
 #include <iterator>
+#include <memory>
 #include <type_traits>
 
 namespace parlay {

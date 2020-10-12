@@ -18,6 +18,7 @@ add_dtests(NAME test_quicksort FILES test_quicksort.cpp LIBS parlay)
 add_dtests(NAME test_bucket_sort FILES test_bucket_sort.cpp LIBS parlay)
 add_dtests(NAME test_integer_sort FILES test_integer_sort.cpp LIBS parlay)
 add_dtests(NAME test_counting_sort FILES test_counting_sort.cpp LIBS parlay)
+add_dtests(NAME test_sample_sort FILES test_sample_sort.cpp LIBS parlay)
 
 # -------------------------------- Primitives ---------------------------------
 

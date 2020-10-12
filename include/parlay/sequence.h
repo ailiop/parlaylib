@@ -42,7 +42,7 @@
 #include "parallel.h"
 #include "range.h"
 #include "slice.h"
-#include "type_traits.h"
+#include "type_traits.h"      // IWYU pragma: keep  // for is_trivially_relocatable
 #include "utilities.h"
 
 #ifdef PARLAY_DEBUG_UNINITIALIZED

@@ -18,7 +18,6 @@
 #include "internal/merge_sort.h"
 #include "internal/sequence_ops.h"     // IWYU pragma: export
 #include "internal/sample_sort.h"
-#include "internal/quicksort.h"
 
 #include "delayed_sequence.h"
 #include "monoid.h"
@@ -227,21 +226,6 @@ auto histogram(const R& A, Integer_ m) {
 
 /* -------------------- General Sorting -------------------- */
 
-namespace internal {
-  
-// We are happy to copy objects that are trivially copyable
-// and at most 16 bytes large. This is used to choose between
-// using sample sort, which makes copies, or quicksort and
-// merge sort, which do not.
-template<typename T>
-struct okay_to_copy : public std::integral_constant<bool,
-    std::is_trivially_copy_constructible_v<T> &&
-    std::is_trivially_copy_assignable_v<T>    &&
-    std::is_trivially_destructible_v<T>
-> {};
-
-}
-
 // Sort the given sequence and return the sorted sequence
 template<PARLAY_RANGE_TYPE R>
 auto sort(const R& in) {
@@ -270,15 +254,7 @@ auto stable_sort(const R& in, Compare&& comp) {
 
 template<PARLAY_RANGE_TYPE R, typename Compare>
 void sort_inplace(R&& in, Compare&& comp) {
-  using value_type = range_value_type_t<R>;
-  // Could use tag dispatch instead of constexpr 
-  // if to make it compatible with C++14
-  if constexpr (internal::okay_to_copy<value_type>::value) {
-    internal::sample_sort_inplace(make_slice(in), std::forward<Compare>(comp), false);
-  }
-  else {
-    internal::quicksort(make_slice(in), std::forward<Compare>(comp));
-  }
+  internal::sample_sort_inplace(make_slice(in), std::forward<Compare>(comp));
 }
 
 template<PARLAY_RANGE_TYPE R>
@@ -289,15 +265,7 @@ void sort_inplace(R&& in) {
 
 template<PARLAY_RANGE_TYPE R, typename Compare>
 void stable_sort_inplace(R&& in, Compare&& comp) {
-  using value_type = range_value_type_t<R>;
-  // Could use tag dispatch instead of constexpr 
-  // if to make it compatible with C++14
-  if constexpr (internal::okay_to_copy<value_type>::value) {
-    internal::sample_sort_inplace(make_slice(in), std::forward<Compare>(comp), true);
-  }
-  else {
-    internal::merge_sort_inplace(make_slice(in), std::forward<Compare>(comp));
-  }
+  internal::merge_sort_inplace(make_slice(in), std::forward<Compare>(comp));
 }
 
 template<PARLAY_RANGE_TYPE R>

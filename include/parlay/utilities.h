@@ -8,7 +8,9 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <algorithm>
 #include <atomic>
+#include <iterator>
 #include <memory>
 #include <new>
 #include <type_traits>
@@ -355,10 +357,10 @@ inline void uninitialized_relocate_n(Iterator1 to, Iterator2 from, size_t n) {
      assign_dispatch(dest, val, tag_type())
 
    Tag types:
-    move_assign_tag:           The value is moved assigned into dest from val
-    uninitialized_move_tag:    The value is move constructed from val into dest
-    copy_assign_tag:           The value is copy assigned into dest from val
-    uninitialized_copy_tag:    The value is copy constructed from val into dest
+    move_assign_tag:                 The value is moved assigned into dest from val
+    uninitialized_move_tag:          The value is move constructed from val into dest
+    copy_assign_tag:                 The value is copy assigned into dest from val
+    uninitialized_copy_tag:          The value is copy constructed from val into dest
     uninitialized_relocate_tag:      The value is destructively moved from val into dest
    
 */   
@@ -393,7 +395,7 @@ void assign_dispatch(T& dest, const T& val, uninitialized_copy_tag) {
   assign_uninitialized(dest, val);
 }
 
-// Destructive move dispatch -- destructively move val into dest
+// Uninitialized relocate dispatch -- destructively move val into dest
 template<typename T>
 void assign_dispatch(T& dest, T& val, uninitialized_relocate_tag) {
   uninitialized_relocate(&dest, &val);
