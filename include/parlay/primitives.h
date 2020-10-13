@@ -104,7 +104,7 @@ template<PARLAY_RANGE_TYPE R>
 auto scan_inclusive(const R& r) {
   using value_type = range_value_type_t<R>;
   return internal::scan(make_slice(r), addm<value_type>(),
-    internal::fl_scan_inclusive);
+    internal::fl_scan_inclusive).first;
 }
 
 template<PARLAY_RANGE_TYPE R>
@@ -117,7 +117,7 @@ template<PARLAY_RANGE_TYPE R>
 auto scan_inclusive_inplace(R&& r) {
   using value_type = range_value_type_t<R>;
   return internal::scan_inplace(make_slice(r), addm<value_type>(),
-    internal::fl_scan_inclusive);
+    internal::fl_scan_inclusive).first;
 }
 
 template<PARLAY_RANGE_TYPE R, typename Monoid>
@@ -128,7 +128,7 @@ auto scan(const R& r, Monoid&& m) {
 template<PARLAY_RANGE_TYPE R, typename Monoid>
 auto scan_inclusive(const R& r, Monoid&& m) {
   return internal::scan(make_slice(r), std::forward<Monoid>(m),
-    internal::fl_scan_inclusive);
+    internal::fl_scan_inclusive).first;
 }
 
 template<PARLAY_RANGE_TYPE R, typename Monoid>
@@ -139,7 +139,7 @@ auto scan_inplace(R&& r, Monoid&& m) {
 template<PARLAY_RANGE_TYPE R, typename Monoid>
 auto scan_inclusive_inplace(R&& r, Monoid&& m) {
   return internal::scan_inplace(make_slice(r), std::forward<Monoid>(m),
-    internal::fl_scan_inclusive);
+    internal::fl_scan_inclusive).first;
 }
 
 /* ----------------------- Pack ----------------------- */
