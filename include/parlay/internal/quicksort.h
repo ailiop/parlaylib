@@ -6,7 +6,9 @@
 #include <new>
 #include <utility>
 
+#include "uninitialized_storage.h"
 #include "sequence_ops.h"
+
 #include "../utilities.h"
 
 namespace parlay {
@@ -41,11 +43,8 @@ auto insertion_sort(Iterator A, size_t n, const BinPred& f) {
     // We want to store the value being moved (A[i]) in a temporary
     // variable. In order to take advantage of uninitialized
     // relocate, we need uninitialized storage to put it in.
-    // std::aligned_storage gives us exactly this. We can not
-    // use a local variable of type T since this would run the
-    // destructor when it gets deleted.
-    typename std::aligned_storage<sizeof(T), alignof(T)>::type temp_storage;
-    T* const tmp = std::launder(reinterpret_cast<T*>(&temp_storage));
+    uninitialized_storage<T> temp_storage;
+    T* tmp = temp_storage.get();
     uninitialized_relocate(tmp, &A[i]);
 
     std::ptrdiff_t j = i - 1;

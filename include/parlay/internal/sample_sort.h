@@ -163,11 +163,11 @@ void sample_sort_inplace_(slice<InIterator, InIterator> In,
                         counts_sub.cut(i * num_buckets, (i + 1) * num_buckets), less);
     });
 
-    // Pivot block is already sorted, so we don't need to sort it again
+    // Sample block is already sorted, so we don't need to sort it again.
     // We can just move it straight over into the other sorted blocks
-    // and then compute the bucket counts
+    // after computing the bucket counts.
+    get_bucket_counts(sample_set, make_slice(pivots), make_slice(counts).cut(0, num_buckets), less);
     uninitialized_relocate_n(Tmp.begin(), sample_set.begin(), sample_set_size);
-    get_bucket_counts(make_slice(Tmp).cut(0, sample_set_size), make_slice(pivots), make_slice(counts).cut(0, num_buckets), less);
 
     // move data from blocks to buckets
     auto bucket_offsets =

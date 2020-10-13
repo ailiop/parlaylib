@@ -64,7 +64,7 @@ void merge_sort_inplace(slice<Iterator, Iterator> In, const BinaryOp& f) {
 
 // not the most efficent way to do due to extra copy
 template <typename Iterator, typename BinaryOp>
-auto merge_sort(slice<Iterator, Iterator> In, const BinaryOp& f) {
+[[nodiscard]] auto merge_sort(slice<Iterator, Iterator> In, const BinaryOp& f) {
   using value_type = typename slice<Iterator, Iterator>::value_type;
   auto A = parlay::sequence<value_type>(In.begin(), In.end());
   merge_sort_inplace(make_slice(A), f);

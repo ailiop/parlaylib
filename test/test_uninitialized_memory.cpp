@@ -1,5 +1,18 @@
 // Tests for incorrect usages of uninitialized memory in Parlay's algorithms
 //
+// How it works:
+//  - If the algorithm uses uninitialized memory, it must obtain it from one of:
+//      * parlay::sequence::uninitialized,
+//      * parlay::internal::uninitialized_sequence,
+//      * parlay::internal::uninitialized_storage
+//    in order for uninitialized tracking to be correctly performed.
+//  - The test case should then test the algorithm on an input sequence that
+//    contains elements of type parlay::internal::UninitializedTracker
+//  - If the algorithm tries to assign to or copy an uninitialized object,
+//    tries to emplace an object into already initialized memory, or leaves
+//    an initialized object undestroyed, the program will terminate with an
+//    assertion error
+//
 // Note that these tests will produce false positives on some compilers because
 // they rely on performing undefined behaviour and hoping that everything works
 // out. This is because, in order to track whether an object is initialized or
@@ -8,7 +21,7 @@
 // can then check this flag when performing uninitialized operations to ensure
 // that the memory is indeed uninitialized. Since this flag is volatile, the
 // compiler should ensure that it is written to memory and visible after the
-// object's destruction, but we can not guarantee this since we are comitting
+// object's destruction, but we can not guarantee this since we are doing
 // undefined behaviour anyway.
 //
 
@@ -18,25 +31,75 @@
 #include <parlay/internal/debug_uninitialized.h>
 
 #include <parlay/primitives.h>
-#include <parlay/sequence.h>
+#include <parlay/type_traits.h>
 
-#include "sorting_utils.h"
+// We do not want UninitializedTracker to be memcpy relocated since we rely on its
+// special member functions to keep track of whether it is initialized or not.
+static_assert(!parlay::is_trivially_relocatable_v<parlay::internal::UninitializedTracker>);
+
+TEST(TestUninitializedMemory, TestInsertionSort) {
+  auto s = parlay::tabulate(10000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
+  });
+  parlay::internal::insertion_sort(s.begin(), s.size(), std::less<parlay::internal::UninitializedTracker>());
+  ASSERT_TRUE(std::is_sorted(std::begin(s), std::end(s)));
+}
+
+TEST(TestUninitializedMemory, TestQuicksort) {
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
+  });
+  parlay::internal::quicksort(make_slice(s), std::less<parlay::internal::UninitializedTracker>());
+  ASSERT_TRUE(std::is_sorted(std::begin(s), std::end(s)));
+}
+
+TEST(TestUninitializedMemory, TestMergeSort) {
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
+  });
+  auto sorted = parlay::internal::merge_sort(make_slice(s), std::less<parlay::internal::UninitializedTracker>());
+  ASSERT_EQ(s.size(), sorted.size());
+  ASSERT_TRUE(std::is_sorted(std::begin(sorted), std::end(sorted)));
+}
+
+TEST(TestUninitializedMemory, TestBucketSort) {
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
+  });
+  parlay::internal::bucket_sort(make_slice(s), std::less<parlay::internal::UninitializedTracker>());
+  ASSERT_TRUE(std::is_sorted(std::begin(s), std::end(s)));
+}
+
+TEST(TestUninitializedMemory, TestSampleSort) {
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
+  });
+  auto sorted = parlay::internal::sample_sort(make_slice(s), std::less<parlay::internal::UninitializedTracker>());
+  ASSERT_EQ(s.size(), sorted.size());
+  ASSERT_TRUE(std::is_sorted(std::begin(sorted), std::end(sorted)));
+}
+
+TEST(TestUninitializedMemory, TestSampleSortInplace) {
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
+  });
+  parlay::internal::sample_sort_inplace(make_slice(s), std::less<parlay::internal::UninitializedTracker>());
+  ASSERT_TRUE(std::is_sorted(std::begin(s), std::end(s)));
+}
 
 TEST(TestUninitializedMemory, TestIntegerSort) {
-  auto s = parlay::sequence<parlay::internal::UninitializedTracker>(10000000);
-  parlay::parallel_for(0, 10000000, [&](size_t i) {
-    s[i].x = (50021 * i + 61) % (1 << 20);
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
   });
   auto sorted = parlay::internal::integer_sort(make_slice(s), [](auto s) { return s.x; });
   ASSERT_EQ(s.size(), sorted.size());
-  ASSERT_TRUE(std::is_sorted(std::begin(sorted), std::end(sorted), [](auto x, auto y) { return x.x < y.x; }));
+  ASSERT_TRUE(std::is_sorted(std::begin(sorted), std::end(sorted)));
 }
 
 TEST(TestUninitializedMemory, TestIntegerSortInPlace) {
-  auto s = parlay::sequence<parlay::internal::UninitializedTracker>(10000000);
-  parlay::parallel_for(0, 10000000, [&](size_t i) {
-  s[i].x = (50021 * i + 61) % (1 << 20);
+  auto s = parlay::tabulate(10000000, [](size_t i) -> parlay::internal::UninitializedTracker {
+    return (50021 * i + 61) % (1 << 20);
   });
   parlay::internal::integer_sort_inplace(make_slice(s), [](auto s) { return s.x; });
-  ASSERT_TRUE(std::is_sorted(std::begin(s), std::end(s), [](auto x, auto y) { return x.x < y.x; }));
+  ASSERT_TRUE(std::is_sorted(std::begin(s), std::end(s)));
 }

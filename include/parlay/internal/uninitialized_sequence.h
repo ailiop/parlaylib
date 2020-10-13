@@ -1,22 +1,6 @@
-// An uninitialized fixed-size sequence container.
-//
-// By uninitialized, we mean two things:
-//  - The constructor uninitialized_sequence<T>(n) does not initialize its elements
-//  - The destructor ~uninitialized_sequence() also DOES NOT destroy its elements
-//
-// In other words, the elements of the sequence are uninitialized upon construction,
-// and are also required to be uninitialized when the sequence is destroyed.
-//
-// Q: What on earth is the purpose of such a container??
-// A: Its purpose is to be used as temporary storage for out of place algorithms
-//    that use uninitialized_relocate. Since the container begins in an uninitialized
-//    state, it is valid to uninitialized_relocate objects into it, and then
-//    uninitialized_relocate them back out. This leaves the elements uninitialized,
-//    so that no destructors will accidentally be triggered for moved-out-of objects.
-//
 
-#ifndef PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE
-#define PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE
+#ifndef PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE_H_
+#define PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE_H_
 
 #include <iterator>
 #include <memory>
@@ -34,9 +18,24 @@ using _uninitialized_sequence_default_allocator = parlay::allocator<T>;
 #else
 template<typename T>
 using _uninitialized_sequence_default_allocator = std::allocator<T>;
-#endif  
+#endif
 
-
+// An uninitialized fixed-size sequence container.
+//
+// By uninitialized, we mean two things:
+//  - The constructor uninitialized_sequence<T>(n) does not initialize its elements
+//  - The destructor ~uninitialized_sequence() also DOES NOT destroy its elements
+//
+// In other words, the elements of the sequence are uninitialized upon construction,
+// and are also required to be uninitialized when the sequence is destroyed.
+//
+// Q: What on earth is the purpose of such a container??
+// A: Its purpose is to be used as temporary storage for out of place algorithms
+//    that use uninitialized_relocate. Since the container begins in an uninitialized
+//    state, it is valid to uninitialized_relocate objects into it, and then
+//    uninitialized_relocate them back out. This leaves the elements uninitialized,
+//    so that no destructors will accidentally be triggered for moved-out-of objects.
+//
 template<typename T, typename Alloc = _uninitialized_sequence_default_allocator<T>>
 class uninitialized_sequence {
  public:
@@ -152,4 +151,4 @@ class uninitialized_sequence {
 }  // namespace internal  
 }  // namespace parlay
 
-#endif  // PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE
+#endif  // PARLAY_INTERNAL_UNINITIALIZED_SEQUENCE_H_

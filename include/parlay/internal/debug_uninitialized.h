@@ -57,12 +57,37 @@ struct UninitializedTracker {
     initialized = false;
   }
 
+  bool operator==(const UninitializedTracker& other) const {
+    assert(initialized && "Trying to compare an uninitialized object!");
+    assert(other.initialized && "Trying to compare against an uninitialized object!");
+    return x == other.x;
+  }
+
+  bool operator<(const UninitializedTracker& other) const {
+    assert(initialized && "Trying to compare an uninitialized object!");
+    assert(other.initialized && "Trying to compare against an uninitialized object!");
+    return x < other.x;
+  }
+
+  void swap(UninitializedTracker& other) {
+    assert(initialized && "Trying to swap uninitialized object!");
+    assert(other.initialized && "Trying to swap with uninitialize object!");
+    std::swap(x, other.x);
+  }
+
   int x;
   volatile bool initialized;   // Volatile required to prevent optimizing out the store in the destructor
 };
 
 }  // namespace internal
 }  // namespace parlay
+
+namespace std {
+  // Specialize the swap function for UninitializedTracker
+  inline void swap(parlay::internal::UninitializedTracker& a, parlay::internal::UninitializedTracker& b) {
+    a.swap(b);
+  }
+}
 
 // Macros for testing initialized/uninitializedness
 
