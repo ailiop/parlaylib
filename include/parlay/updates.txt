@@ -12,13 +12,16 @@ updated so can separately compile
 file_map.h
 added inline to swap so can separately compile
 
+sequence_ops.h
+added granularity to tabulate
+
 primitives.h
 got rid of const in map_tokens so function can modify the input string in place -> &&
 fixed type of out to && in pack_into 
 fixed a bug in map_split_at (missing +1, and n for m)
 
 sequence.h
-passing granularity in from_function
+passing granularity in from_function -- then changed it to 0 from 1000
 added clear_uninitialized
 added granularity in some parallel_fors
 added special case for is_small in copy constructor
