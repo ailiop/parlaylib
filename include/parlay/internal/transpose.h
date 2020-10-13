@@ -146,7 +146,7 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
 
     // slow down?
     dest_offsets = sequence<s_size_t>::from_function(m, get);
-    size_t sum = scan_inplace(make_slice(dest_offsets), add);
+    [[maybe_unused]] size_t sum = scan_inplace(make_slice(dest_offsets), add);
     assert(sum == n);
 
     // send each key to correct location within its bucket
@@ -167,8 +167,8 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
         .trans(num_blocks, num_buckets);
 
     // do both scans inplace
-    size_t total = scan_inplace(make_slice(dest_offsets), add);
-    size_t total2 = scan_inplace(make_slice(counts), add);
+    [[maybe_unused]] size_t total = scan_inplace(make_slice(dest_offsets), add);
+    [[maybe_unused]] size_t total2 = scan_inplace(make_slice(counts), add);
     assert(total == n && total2 == n);
 
     counts[m] = n;

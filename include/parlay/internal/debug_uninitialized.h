@@ -22,10 +22,11 @@ namespace internal {
 // someone comes along and wants to do an uninitialized
 // in place construction at that memory location.
 //
-// Some compiler or debugging tool might automatically
-// fill the memory owned by a destroyed object with some
-// detectable state for their own debugging purposes. This
-// would break this class if that ever happens.
+// Some compilers or debugging tools might therefore not
+// work correctly with this class. Defining the initialized
+// flag as volatile seems to prevent compilers from optimizing
+// it out, and therefore leaves its value in memory after
+// the object is destroyed, but this can not be guaranteed.
 //
 // For correctness, this type should only ever be used
 // if its memory is allocated inside a parlay::sequence
@@ -57,7 +58,7 @@ struct UninitializedTracker {
   }
 
   int x;
-  bool initialized;
+  volatile bool initialized;   // Volatile required to prevent optimizing out the store in the destructor
 };
 
 }  // namespace internal

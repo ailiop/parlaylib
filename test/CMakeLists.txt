@@ -25,6 +25,10 @@ add_dtests(NAME test_sample_sort FILES test_sample_sort.cpp LIBS parlay)
 add_dtests(NAME test_primitives FILES test_primitives.cpp LIBS parlay)
 add_dtests(NAME test_random FILES test_random.cpp LIBS parlay)
 
+# -------------------------- Uninitialized memory testing ---------------------------
+
+add_dtests(NAME test_uninitialized_memory FILES test_uninitialized_memory.cpp LIBS parlay NO_SANITIZE)
+
 # -------------------------------- IO ---------------------------------
 
 add_dtests(NAME test_io FILES test_io.cpp LIBS parlay)
