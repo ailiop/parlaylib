@@ -46,6 +46,8 @@ replaced = with == in a typo
 counting_sort.h
 replaced a stray .slice with to_slice
 
+primitives.h
+changed scan_inclusive so it just returns sequence (updated tests to correspond)
 
 Todo:
 Sequences:
