@@ -14,7 +14,7 @@
 #include "sequence.h"
 #include "slice.h"
 #include "utilities.h"
-
+#include "../../pbbstimings/get_time.h"
 #include "internal/counting_sort.h"
 
 namespace parlay {
@@ -51,7 +51,7 @@ template <typename InIterator, typename OutIterator>
 void random_shuffle_(slice<InIterator, InIterator> In,
                      slice<OutIterator, OutIterator> Out,
                      random r = random()) {
-                       
+  timer t;
   size_t n = In.size();
   if (n < SEQ_THRESHOLD) {
     parallel_for(0,n,[&] (size_t i) {
@@ -83,7 +83,8 @@ void random_shuffle_(slice<InIterator, InIterator> In,
   std::tie(bucket_offsets, single)
     = count_sort<std::true_type, std::true_type>(
         make_slice(In), make_slice(Out), make_slice(get_pos), num_buckets);
-
+  t.next("count sort");
+  
   // now sequentially randomly shuffle within each bucket
   auto bucket_f = [&] (size_t i) {
     size_t start = bucket_offsets[i];
@@ -91,6 +92,7 @@ void random_shuffle_(slice<InIterator, InIterator> In,
     seq_random_shuffle_(make_slice(Out).cut(start,end), r.fork(i));
   };
   parallel_for(0, num_buckets, bucket_f, 1);
+  t.next("seq shuffle");
 }
 
 }  // namespace internal
@@ -105,9 +107,9 @@ auto random_shuffle(const R& In, random r = random()) {
   // We have to make a redundant copy here due to a const
   // correctness bug inside counting sort.
   // TODO: Fix this
-  auto InCopy = to_sequence(In);
+  //auto InCopy = to_sequence(In);
   auto Out = sequence<T>::uninitialized(In.size());
-  internal::random_shuffle_(make_slice(InCopy), make_slice(Out), r);
+  internal::random_shuffle_(make_slice(In), make_slice(Out), r);
   return Out;
 }
 

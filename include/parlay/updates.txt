@@ -35,6 +35,17 @@ added p_alloc, p_free (just alloc and free ussing parlay allocator)
 posix/file_map_impl_posix.h
 fixed assert around fstat
 
+****
+
+random.h
+removed what seemed to be an extra copy on the input
+
+collect_reduce.h
+replaced = with == in a typo
+
+counting_sort.h
+replaced a stray .slice with to_slice
+
 
 Todo:
 Sequences:
@@ -42,3 +53,4 @@ Sequences:
 - push_back seems slower than std::vector with gcc on smallish vectors (did not try on
 large).   Could be due to the granularity control, but also seems like gcc uses a factor of 2 instead of 1.5.   Perhaps take advantage of the parlay allocator sizes, which are powers of 2, i.e. even if you allocate less, it will round up.
 - add += to be consistent with string, perhaps also length, replace, substr (subseq?), compare.  String also has copy, find, rfind, find_{first,last}_[not_]of.   What about + for append, and the relational operators?  Seems like c_str would be hard (impossible?) without zero padding. 
+
