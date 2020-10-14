@@ -225,8 +225,8 @@ auto count_sort(slice<InIterator, InIterator> In,
 template <typename InIterator, typename KeyS>
 auto count_sort(slice<InIterator, InIterator> In, KeyS const& Keys, size_t num_buckets) {
   using value_type = typename slice<InIterator, InIterator>::value_type;
-  sequence<value_type> Out(In.size());
-  auto a = count_sort<std::true_type, std::false_type>(In, Out.slice(), Keys, num_buckets);
+  auto Out = sequence<value_type>::uninitialized(In.size());
+  auto a = count_sort<std::true_type, std::true_type>(In, make_slice(Out), Keys, num_buckets);
   return std::make_pair(std::move(Out), std::move(a.first));
 }
 

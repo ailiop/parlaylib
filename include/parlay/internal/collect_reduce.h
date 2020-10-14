@@ -195,7 +195,7 @@ struct get_bucket {
 template <typename K>
 struct hasheq_mask_low {
   inline size_t hash(K a) const { return hash64_2(a & ~((size_t)15)); }
-  inline bool equal(K a, K b) const { return a = b; }
+  inline bool equal(K a, K b) const { return a == b; }
 };
 
 template <typename Seq, class Key, class Value, typename M>
