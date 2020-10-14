@@ -107,11 +107,16 @@ void sample_sort_inplace_(slice<InIterator, InIterator> In,
       bucket_quotient = 3;
       block_quotient = 3;
     }
+
+    // How many samples to take in terms of blocks, i.e.,
+    // we take sample_blocks * block_size samples
+    size_t sample_blocks = 4;
+
     size_t sqrt = static_cast<size_t>(std::sqrt(n));
     size_t num_blocks = 1 << log2_up((sqrt / block_quotient) + 1);
     size_t block_size = ((n - 1) / num_blocks) + 1;
     size_t num_buckets = (sqrt / bucket_quotient) + 1;
-    size_t sample_set_size = block_size;
+    size_t sample_set_size = sample_blocks * block_size;
     size_t m = num_blocks * num_buckets;
 
     // We want to select evenly spaced pivots from the sorted samples
@@ -124,8 +129,7 @@ void sample_sort_inplace_(slice<InIterator, InIterator> In,
     // In place sampling!. Just swap elements to the front of
     // the sequence to be used as the samples. This way, no
     // copying is required! This is essentially just k iterations
-    // of a Knuth shuffle. Note that we cleverly copy exactly
-    // one block size worth of samples.
+    // of a Knuth shuffle.
     for (size_t i = 0; i < sample_set_size; i++) {
       size_t j = i + hash64(i) % (n - i);
       std::swap(In[i], In[j]);
@@ -141,32 +145,26 @@ void sample_sort_inplace_(slice<InIterator, InIterator> In,
       return sample_set[stride * i];
     });
 
-    // Note that at this point, the samples occupy exactly one block.
-    // They are also already sorted, so we don't need to sort the
-    // first block, which is good, because we don't want the pivots
-    // moving around while we use them to compute bucket counts
-    // for all of the other blocks!
-
     // sort each block and merge with samples to get counts for each bucket
     auto Tmp = uninitialized_sequence<value_type>(n);
     auto counts = sequence<s_size_t>::uninitialized(m + 1);
     counts[m] = 0;
 
-    auto In_sub = In.cut(sample_set_size, n);
-    auto Tmp_sub = make_slice(Tmp).cut(sample_set_size, n);
-    auto counts_sub = make_slice(counts).cut(num_buckets, m + 1);
-
-    sliced_for(n - sample_set_size, block_size, [&](size_t i, size_t start, size_t end) {
-      seq_sort_<uninitialized_relocate_tag>(In_sub.cut(start, end),
-                                            Tmp_sub.cut(start, end), less, false);
-      get_bucket_counts(Tmp_sub.cut(start, end), make_slice(pivots),
-                        counts_sub.cut(i * num_buckets, (i + 1) * num_buckets), less);
+    sliced_for(n, block_size, [&](size_t i, size_t start, size_t end) {
+      // The sample blocks are already sorted, so we don't need to sort them again.
+      if (i >= sample_blocks) {
+        seq_sort_<uninitialized_relocate_tag>(In.cut(start, end), make_slice(Tmp).cut(start, end), less, false);
+        get_bucket_counts(make_slice(Tmp).cut(start, end), make_slice(pivots),
+                          make_slice(counts).cut(i * num_buckets, (i + 1) * num_buckets), less);
+      }
+      else {
+        get_bucket_counts(make_slice(In).cut(start, end), make_slice(pivots),
+                          make_slice(counts).cut(i * num_buckets, (i + 1) * num_buckets), less);
+      }
     });
 
     // Sample block is already sorted, so we don't need to sort it again.
     // We can just move it straight over into the other sorted blocks
-    // after computing the bucket counts.
-    get_bucket_counts(sample_set, make_slice(pivots), make_slice(counts).cut(0, num_buckets), less);
     uninitialized_relocate_n(Tmp.begin(), sample_set.begin(), sample_set_size);
 
     // move data from blocks to buckets

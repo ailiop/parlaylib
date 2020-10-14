@@ -7,9 +7,6 @@
 #include <parlay/monoid.h>
 #include <parlay/primitives.h>
 #include <parlay/random.h>
-#include <parlay/sequence.h>
-
-#include <parlay/internal/merge_sort.h>
 
 template<typename T>
 static void bench_map(benchmark::State& state) {
@@ -261,7 +258,7 @@ static void bench_integer_sort_128(benchmark::State& state) {
 }
 
 template<typename T>
-static void bench_sample_sort(benchmark::State& state) {
+static void bench_sort(benchmark::State& state) {
   size_t n = state.range(0);
   parlay::random r(0);
   auto in = parlay::tabulate(n, [&] (size_t i) -> T {return r.ith_rand(i)%n;});
@@ -269,6 +266,21 @@ static void bench_sample_sort(benchmark::State& state) {
   
   for (auto _ : state) {
     out = parlay::internal::sample_sort(parlay::make_slice(in), std::less<T>());
+  }
+}
+
+template<typename T>
+static void bench_sort_inplace(benchmark::State& state) {
+  size_t n = state.range(0);
+  parlay::random r(0);
+  auto in = parlay::tabulate(n, [&] (size_t i) -> T {return r.ith_rand(i)%n;});
+  parlay::sequence<T> out;
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    out = in;
+    state.ResumeTiming();
+    parlay::internal::sample_sort_inplace(parlay::make_slice(in), std::less<T>());
   }
 }
 
@@ -354,12 +366,15 @@ BENCH(random_shuffle, long, 100000000);
 BENCH(histogram, unsigned int, 100000000);
 BENCH(histogram_same, unsigned int, 100000000);
 BENCH(histogram_few, unsigned int, 100000000);
-BENCH(integer_sort_pair, unsigned int, 100000000);
 BENCH(integer_sort, unsigned int, 100000000);
+BENCH(integer_sort_pair, unsigned int, 100000000);
 BENCH(integer_sort_128, void, 100000000);
-BENCH(sample_sort, long, 100000000);
-BENCH(sample_sort, unsigned int, 100000000);
-BENCH(sample_sort, __int128, 100000000);
+BENCH(sort, unsigned int, 100000000);
+BENCH(sort, long, 100000000);
+BENCH(sort, __int128, 100000000);
+BENCH(sort_inplace, unsigned int, 100000000);
+BENCH(sort_inplace, long, 100000000);
+BENCH(sort_inplace, __int128, 100000000);
 BENCH(merge, long, 100000000);
 BENCH(scatter, int, 100000000);
 BENCH(merge_sort, long, 100000000);
