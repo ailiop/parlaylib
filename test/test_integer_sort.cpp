@@ -25,7 +25,7 @@ TEST(TestIntegerSort, TestIntegerSortInplaceUniquePtr) {
   std::sort(std::begin(sorted), std::end(sorted), [](const auto& p1, const auto& p2) {
     return *p1 < *p2;
   });
-  parlay::integer_sort_inplace(s, [](const auto& p) { return *p; });
+  parlay::integer_sort_inplace(s, [](const auto& p) { return static_cast<unsigned int>(*p); });
   ASSERT_EQ(s.size(), sorted.size());
   for (size_t i = 0; i < 100000; i++) {
     ASSERT_EQ(*s[i], *sorted[i]);
@@ -65,16 +65,16 @@ namespace parlay {
 }
 
 TEST(TestIntegerSort, TestIntegerSortCopyAndDestructiveMove) {
-  auto s = parlay::tabulate(100000, [](size_t i) {
-    return HeapInt((50021 * i + 61) % (1 << 20));
+  auto s = parlay::tabulate(100000, [](int i) {
+    return HeapInt((51 * i + 61) % (1 << 20));
   });
-  auto real_sorted = parlay::tabulate(100000, [](size_t i) {
-    return HeapInt((50021 * i + 61) % (1 << 20));
+  auto real_sorted = parlay::tabulate(100000, [](int i) {
+    return HeapInt((51 * i + 61) % (1 << 20));
   });
   std::sort(std::begin(real_sorted), std::end(real_sorted), [](const auto& p1, const auto& p2) {
     return p1.value() < p2.value();
   });
-  auto sorted = parlay::integer_sort(s, [](const auto& p) { return p.value(); });
+  auto sorted = parlay::integer_sort(s, [](const auto& p) { return static_cast<unsigned int>(p.value()); });
   ASSERT_EQ(sorted.size(), s.size());
   for (size_t i = 0; i < 100000; i++) {
     ASSERT_EQ(real_sorted[i].value(), sorted[i].value());

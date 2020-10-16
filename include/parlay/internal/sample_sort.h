@@ -33,6 +33,8 @@ void get_bucket_counts(slice<InIterator, InIterator> sA,
                        slice<PivotIterator, PivotIterator> sB,
                        slice<CountIterator, CountIterator> sC,
                        Compare f) {
+  using s_size_t = typename std::iterator_traits<CountIterator>::value_type;
+
   if (sA.size() == 0 || sB.size() == 0) return;
   for (auto& c : sC) c = 0;
   auto itA = sA.begin();
@@ -59,7 +61,7 @@ void get_bucket_counts(slice<InIterator, InIterator> sA,
     }
   }
   assert(itC != sC.end());
-  *itC = sA.end() - itA;
+  *itC = static_cast<s_size_t>(sA.end() - itA);
 }
 
 template <typename Iterator, typename Compare>
@@ -215,7 +217,7 @@ void sample_sort_(slice<InIterator, InIterator> In,
       block_quotient = 3;
     }
     size_t sqrt = static_cast<size_t>(std::sqrt(n));
-    size_t num_blocks = 1 << log2_up((sqrt / block_quotient) + 1);
+    size_t num_blocks = size_t{1} << log2_up((sqrt / block_quotient) + 1);
     size_t block_size = ((n - 1) / num_blocks) + 1;
     size_t num_buckets = (sqrt / bucket_quotient) + 1;
     size_t sample_set_size = num_buckets * OVER_SAMPLE;
@@ -270,7 +272,7 @@ auto sample_sort(slice<Iterator, Iterator> A,
     sample_sort_<unsigned int>(A, make_slice(R), less, stable);
   }
   else {
-    sample_sort_<unsigned long long>(A, make_slice(R), less, stable);
+    sample_sort_<size_t>(A, make_slice(R), less, stable);
   }
   return R;
 }
@@ -282,7 +284,7 @@ void sample_sort_inplace(slice<Iterator, Iterator> A,
     sample_sort_inplace_<unsigned int>(A, A, less);
   }
   else {
-    sample_sort_inplace_<unsigned long long>(A, A, less);
+    sample_sort_inplace_<size_t>(A, A, less);
   }
 }
 

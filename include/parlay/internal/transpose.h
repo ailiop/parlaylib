@@ -137,7 +137,7 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
   if (n < NON_CACHE_OBLIVIOUS_THRESHOLD || num_buckets <= 512 || num_blocks <= 512) {
     size_t block_bits = log2_up(num_blocks);
     size_t block_mask = num_blocks - 1;
-    assert((size_t)1 << block_bits == num_blocks);
+    assert(size_t{1} << block_bits == num_blocks);
 
     // determine the destination offsets
     auto get = [&](size_t i) {
@@ -146,7 +146,7 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
 
     // slow down?
     dest_offsets = sequence<s_size_t>::from_function(m, get);
-    [[maybe_unused]] size_t sum = scan_inplace(make_slice(dest_offsets), add);
+    [[maybe_unused]] auto sum = scan_inplace(make_slice(dest_offsets), add);
     assert(sum == n);
 
     // send each key to correct location within its bucket
@@ -171,7 +171,7 @@ sequence<size_t> transpose_buckets(InIterator From, OutIterator To,
     [[maybe_unused]] size_t total2 = scan_inplace(make_slice(counts), add);
     assert(total == n && total2 == n);
 
-    counts[m] = n;
+    counts[m] = static_cast<s_size_t>(n);
 
     blockTrans<assignment_tag, InIterator, OutIterator,
                typename sequence<s_size_t>::iterator,
