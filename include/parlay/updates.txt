@@ -48,6 +48,11 @@ replaced a stray .slice with to_slice
 
 primitives.h
 changed scan_inclusive so it just returns sequence (updated tests to correspond)
+added delayed_tabulate
+changed dmap to delayed_map (updated tests to correspond)
+moved tabulate here from internals/sequence_ops.h
+more updates to map_split_at (updates tests to correspond)
+
 
 Todo:
 Sequences:

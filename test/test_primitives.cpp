@@ -31,11 +31,11 @@ TEST(TestPrimitives, TestMap) {
   }
 }
 
-TEST(TestPrimitives, TestDMap) {
+TEST(TestPrimitives, TestDelayedMap) {
   auto s = parlay::tabulate(100000, [](long long i) -> long long {
     return (50021 * i + 61) % (1 << 20);
   });
-  auto m = parlay::dmap(s, [](int x) { return 3*x - 1; });
+  auto m = parlay::delayed_map(s, [](int x) { return 3*x - 1; });
   ASSERT_EQ(m.size(), s.size());
   for (size_t i = 0; i < 100000; i++) {
     ASSERT_EQ(m[i], 3*s[i] - 1);
@@ -581,30 +581,25 @@ TEST(TestPrimitives, TestMapTokensVoid) {
 }
 
 TEST(TestPrimitives, TestSplitAt) {
-  auto seq = parlay::tabulate(999999, [](int i) { return i; });
-  auto seqs = parlay::split_at(seq, parlay::delayed_seq<bool>(999999, [&](int i) -> int {
-    return i % 1000 == 0;
+  auto seq = parlay::tabulate(999999, [](int i) { return 1; });
+  auto seqs = parlay::split_at(seq, parlay::delayed_tabulate(999999, [&](int i) -> bool {
+    return i % 1000 == 999;
   }));
   
   auto ans = parlay::tabulate(1000, [](int i) -> parlay::sequence<int> {
-    if (i == 0) return {};
-    else return parlay::tabulate(999, [=](int j) -> int { return 1000 * (i - 1) + j + 1; });
-  });
+      return parlay::sequence((i==999) ? 999 : 1000, 1);});
   
   ASSERT_EQ(seqs, ans);
 }
 
 TEST(TestPrimitives, TestMapSplitAt) {
-  auto seq = parlay::tabulate(999999, [](int i) { return i; });
+  auto seq = parlay::tabulate(999999, [](int i) { return 1; });
   auto map_reduces = parlay::map_split_at(seq,
-    parlay::delayed_seq<bool>(999999, [&](int i) -> int { return i % 1000 == 0; }),
+    parlay::delayed_tabulate(999999, [&](int i) -> bool { return i % 1000 == 999; }),
     [](const auto& s) { return parlay::reduce(s); });
   
-  auto splits = parlay::tabulate(1000, [](int i) -> parlay::sequence<int> {
-    if (i == 0) return {};
-    else return parlay::tabulate(999, [=](int j) -> int { return 1000 * (i - 1) + j + 1; });
-  });
-  auto answer = parlay::map(splits, [](const auto& s) { return parlay::reduce(s); });
+  auto answer = parlay::tabulate(1000, [](int i) -> int {
+      return (i == 999) ? 999 : 1000;});
   
   ASSERT_EQ(map_reduces, answer);
 }

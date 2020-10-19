@@ -12,37 +12,6 @@
 namespace parlay {
 namespace internal {
 
-template<typename UnaryOp>
-auto tabulate(size_t n, UnaryOp&& f, size_t granularity=0) {
-  return sequence<typename std::remove_reference<
-                  typename std::remove_cv<
-                  decltype(f(0))
-                  >::type>::type>::
-    from_function(n, f, granularity);
-}
-
-template <typename Seq, typename UnaryFunc>
-auto map(Seq const &A, UnaryFunc f) -> sequence<decltype(f(A[0]))> {
-  return tabulate(A.size(), [&](size_t i) { return f(A[i]); });
-}
-
-template <class F>
-auto dseq (size_t n, F f) -> delayed_sequence<decltype(f(0)),F> {
-  using T = decltype(f(0));
-  return delayed_sequence<T,F>(n,f);
-}
-
-// delayed version of map
-// requires C++14 or greater, both since return type is not defined (a lambda)
-//   and for support of initialization of the closure lambda capture
-template <typename Seq, typename UnaryFunc>
-auto dmap(Seq &&A, UnaryFunc&& f) {
-  size_t n = A.size();
-  return dseq(n, [f=std::forward<UnaryFunc>(f),
-		  A=std::forward<Seq>(A)] (size_t i) {
-		return f(A[i]);});
-}
-
 template <typename T>
 auto singleton(T const &v) -> sequence<T> {
   return sequence<T>(1, v);

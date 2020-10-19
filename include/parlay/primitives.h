@@ -34,7 +34,14 @@ namespace parlay {
 
 // Return a sequence consisting of the elements
 //   f(0), f(1), ... f(n)
-using internal::tabulate;
+template<typename UnaryOp>
+auto tabulate(size_t n, UnaryOp&& f, size_t granularity=0) {
+  return sequence<typename std::remove_reference<
+                  typename std::remove_cv<
+                  decltype(f(0))
+                  >::type>::type>::
+    from_function(n, f, granularity);
+}
 
 // Return a sequence consisting of the elements
 //   f(r[0]), f(r[1]), ..., f(r[n-1])
@@ -42,6 +49,13 @@ template<PARLAY_RANGE_TYPE R, typename UnaryOp>
 auto map(R&& r, UnaryOp&& f) {
   return tabulate(parlay::size(r), [&f, it = std::begin(r)](size_t i) {
     return f(it[i]); });
+}
+
+template<typename UnaryOp>
+auto delayed_tabulate(size_t n, UnaryOp&& f) {
+  return delayed_seq<typename std::remove_reference<
+                     typename std::remove_cv<
+                     decltype(f(0))>::type>::type>(n, std::forward<UnaryOp>(f));
 }
 
 // Return a delayed sequence consisting of the elements
@@ -52,13 +66,9 @@ auto map(R&& r, UnaryOp&& f) {
 // the delayed sequence will hold a reference to it, so
 // r must remain alive as long as the delayed sequence.
 template<PARLAY_RANGE_TYPE R, typename UnaryOp>
-auto dmap(R&& r, UnaryOp&& f) {
+auto delayed_map(R&& r, UnaryOp&& f) {
   size_t n = parlay::size(r);
-  return delayed_seq<typename std::remove_reference<
-                          typename std::remove_cv<
-                           decltype(f(std::declval<range_value_type_t<R>&>()))
-                           >::type>::type>
-     (n, [ r = std::forward<R>(r), f = std::forward<UnaryOp>(f) ]
+  return delayed_tabulate(n, [ r = std::forward<R>(r), f = std::forward<UnaryOp>(f) ]
        (size_t i) { return f(std::begin(r)[i]); });
 }
 
@@ -776,17 +786,18 @@ sequence<sequence<char>> tokens(const Range& R, UnaryPred is_space = is_whitespa
   return map_tokens(R, [] (auto x) { return to_sequence(x); }, is_space);
 }
 
-// Returns a sequence of contiguous subsequences of R, each
-// of which is delimited by positions in the sequence i such that flags[i]
-// is (or converts to) true. There will always be one more subsequence than
-// number of true flags.
+// Partitions R into contiguous subsequences, by marking the last element of each
+// subsequence with a true in flags.  There is an implied flag at the end.
+// Returns a nested sequence whose sum of lengths is equal to the original length.
+// If the last position is marked as true, then there will be an empty subsequence at the end.
+// The length of the result is therefore always one more than the number of true flags.
 template <PARLAY_RANGE_TYPE Range, PARLAY_RANGE_TYPE BoolRange>
 auto split_at(const Range& R, const BoolRange& flags) {
   static_assert(std::is_convertible_v<range_value_type_t<BoolRange>, bool>);
   return map_split_at(R, flags, [] (auto x) {return to_sequence(x);});
 }
 
-// Applies the given function f to each of the contiguous subsequences
+// Like split_at, butApplies the given function f to each of the contiguous subsequences
 // of R delimited by positions i such that flags[i] is (or converts to)
 // true.
 template <PARLAY_RANGE_TYPE Range, PARLAY_RANGE_TYPE BoolRange, typename UnaryOp>
@@ -803,7 +814,7 @@ auto map_split_at(const Range& R, const BoolRange& flags, UnaryOp f) {
 
   return tabulate(m + 1, [&] (size_t i) {
     size_t start = (i==0) ? 0 : Locations[i-1] + 1;
-    size_t end = (i==m) ? n : Locations[i];
+    size_t end = (i==m) ? n : Locations[i] + 1;
     return f(S.cut(start, end)); });
 }
 
