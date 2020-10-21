@@ -12,6 +12,15 @@
 namespace parlay {
 namespace internal {
 
+template<typename UnaryOp>
+auto tabulate(size_t n, UnaryOp&& f, size_t granularity=0) {
+  return sequence<typename std::remove_reference<
+                  typename std::remove_cv<
+                  decltype(f(0))
+                  >::type>::type>::
+    from_function(n, f, granularity);
+}
+
 template <typename T>
 auto singleton(T const &v) -> sequence<T> {
   return sequence<T>(1, v);
