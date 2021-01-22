@@ -61,7 +61,8 @@ set(DTEST_SANITIZER_BLACKLIST_COMMAND "-fsanitize-blacklist=${DTEST_SANITIZER_BL
 
 # Check whether a given set of flags is supported
 function(flags_supported FLAGS VAR)
-  set(CMAKE_REQUIRED_FLAGS "${FLAGS}")
+  string(REPLACE ";" " " STR_FLAGS "${FLAGS}")
+  set(CMAKE_REQUIRED_FLAGS "${STR_FLAGS}")
   check_cxx_compiler_flag("${FLAGS}" ${VAR})
   unset(CMAKE_REQUIRED_FLAGS)
 endfunction(flags_supported)
