@@ -4,6 +4,7 @@
 # - Requires the GoogleTest framework (test cases must use it)
 # - Every test case is instrumented with ASAN, UBSAN, TSAN, and MSAN.
 # - Every test case can be ran with memcheck
+# - If using the OpenCilk scheduler, test cases can be instrumented with CSAN
 # -------------------------------------------------------------------
 
 # CTest options must go before include(CTest)
@@ -18,11 +19,12 @@ include(GoogleTest)
 # --------------------------------------------------------------------
 
 # Option to enable the sanitizer-instrumented tests
-option(BUILD_ASAN_TESTS       "Build tests instrumented with ASAN"  OFF)
-option(BUILD_UBSAN_TESTS      "Build tests instrumented with UBSAN" OFF)
-option(BUILD_TSAN_TESTS       "Build tests instrumented with TSAN"  OFF)
-option(BUILD_MSAN_TESTS       "Build tests instrumented with MSAN"  OFF)
-option(ENABLE_MEMCHECK_TESTS  "Enable memcheck target for tests"    OFF)
+option(BUILD_ASAN_TESTS       "Build tests instrumented with ASAN"                 OFF)
+option(BUILD_UBSAN_TESTS      "Build tests instrumented with UBSAN"                OFF)
+option(BUILD_TSAN_TESTS       "Build tests instrumented with TSAN"                 OFF)
+option(BUILD_MSAN_TESTS       "Build tests instrumented with MSAN"                 OFF)
+option(BUILD_CSAN_TESTS       "Build tests instrumented with CSAN (OpenCilk only)" OFF)
+option(ENABLE_MEMCHECK_TESTS  "Enable memcheck target for tests"                   OFF)
 
 # Option to use libc++
 option(USE_LIBCXX "Use the libc++ standard library implementation" OFF)
@@ -53,6 +55,13 @@ set(DTEST_MSAN_FLAGS
 set(DTEST_TSAN_FLAGS
   -fsanitize=thread
   -fno-sanitize-recover=thread
+)
+set(DTEST_CSAN_FLAGS
+  -fsanitize=cilk
+  -fopencilk
+  -fno-unroll-loops
+  -fno-vectorize
+  -fno-stripmine
 )
 
 # Sanitizer blacklist file
@@ -130,6 +139,18 @@ if(BUILD_MSAN_TESTS)
   endif()
 else()
   message(STATUS "MemorySanitizer:              Disabled (Enable with -DBUILD_MSAN_TESTS=On)")
+endif()
+
+# Check for CSAN support
+if(BUILD_CSAN_TESTS)
+  flags_supported("${DTEST_CSAN_FLAGS}" CSAN_SUPPORT)
+  if(CSAN_SUPPORT)
+    message(STATUS "Cilksan:                      Enabled")
+  else()
+    message(FATAL_ERROR "Cilksan is not supported by the compiler")
+  endif()
+else()
+  message(STATUS "Cilksan:                      Disabled (Enable with -DBUILD_CSAN_TESTS=On)")
 endif()
 
 # Check for memcheck installation
@@ -262,6 +283,13 @@ function(add_dtests)
   if (BUILD_MSAN_TESTS AND NOT NO_SANITIZE)
     add_dtest("${TESTNAME}" "${TESTFILES}" "${MSAN_FLAGS}" "msan" gtest_main-msan "${TESTLIBS}" "${TESTFLAGS}")
     add_msan_instrumentation(${TESTNAME}-msan)
+  endif()
+
+  # Test with CSAN (Cilksan) -- *ONLY* when using OpenCilk and the Cilk scheduler
+  if (BUILD_CSAN_TESTS AND NOT NO_SANITIZE AND OPENCILK_SUPPORT
+      AND (TESTNAME STREQUAL "test_cilk_plugin"
+        OR CMAKE_CXX_FLAGS MATCHES "(^|[ \t\r\n]+)-DPARLAY_CILK($|[ \t\r\n]+)"))
+    add_dtest("${TESTNAME}" "${TESTFILES}" "${DTEST_CSAN_FLAGS}" "csan" gtest_main "${TESTLIBS}" "${TESTFLAGS}")
   endif()
 endfunction()
 
