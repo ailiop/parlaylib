@@ -83,7 +83,7 @@ if(PARLAY_TEST_CILK)
   if(OPENCILK_SUPPORT OR CILKPLUS_SUPPORT)
     add_dtests(NAME test_cilk_plugin FILES test_cilk_plugin.cpp LIBS parlay FLAGS ${CILK_FLAGS})
   else()
-    message(FATAL_ERROR "You are trying to build the Cilk integration tests, but your compiler does not support Cilk. You'll need to switch to a compiler that does, or turn off the Cilk tests (-DTEST_CILK=Off)")
+    message(FATAL_ERROR "You are trying to build the Cilk integration tests, but your compiler does not support Cilk. You'll need to switch to a compiler that does, or turn off the Cilk tests (-DPARLAY_TEST_CILK=Off)")
   endif()
 endif()
 

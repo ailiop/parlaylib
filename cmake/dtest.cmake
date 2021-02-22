@@ -162,7 +162,7 @@ if(ENABLE_MEMCHECK_TESTS)
     message(FATAL_ERROR "Could not find valgrind executable for memcheck target")
   endif()
 else()
-  message(STATUS "memcheck:                     Disabled (Enable with -DENABLE_MEMCHECK_TESTS)")
+  message(STATUS "memcheck:                     Disabled (Enable with -DENABLE_MEMCHECK_TESTS=On)")
 endif()
 
 # Link the given target (and its dependents) against libc++
