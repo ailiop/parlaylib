@@ -5,11 +5,11 @@
 #include <numeric>
 #include <thread>
 
-// Use Cilk for scheduling
-#define PARLAY_CILK
+// Use OpenCilk for scheduling
+#define PARLAY_OPENCILK
 #include <parlay/parallel.h>
 
-TEST(TestCilk, TestParDo) {
+TEST(TestOpenCilk, TestParDo) {
   int x = 0, y = 0;
   parlay::par_do(
     [&]() { x = 1; },
@@ -19,7 +19,7 @@ TEST(TestCilk, TestParDo) {
   ASSERT_EQ(y, 2);
 }
 
-TEST(TestCilk, TestParFor) {
+TEST(TestOpenCilk, TestParFor) {
   size_t n = 1000;
   std::vector<int> v(n);
   parlay::parallel_for(0, n, [&](auto i) {
@@ -30,7 +30,7 @@ TEST(TestCilk, TestParFor) {
   }
 }
 
-TEST(TestCilk, TestGranularFor) {
+TEST(TestOpenCilk, TestGranularFor) {
   size_t n = 1000;
   std::vector<int> v(n);
   parlay::parallel_for(0, n, [&](auto i) {

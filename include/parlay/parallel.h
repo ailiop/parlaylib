@@ -40,9 +40,13 @@ inline void par_do(Lf left, Rf right, bool conservative = false);
 //                Scheduler selection
 //****************************************************
 
-// Cilk Scheduler
-#if defined(PARLAY_CILK)
-#include "internal/scheduler_plugins/cilk.h"        // IWYU pragma: keep, export
+// OpenCilk Scheduler
+#if defined(PARLAY_OPENCILK)
+#include "internal/scheduler_plugins/opencilk.h"    // IWYU pragma: keep, export
+
+// Cilk Plus Scheduler
+#elif defined(PARLAY_CILKPLUS)
+#include "internal/scheduler_plugins/cilkplus.h"    // IWYU pragma: keep, export
 
 // OpenMP Scheduler
 #elif defined(PARLAY_OPENMP)

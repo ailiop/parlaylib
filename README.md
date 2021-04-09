@@ -119,10 +119,11 @@ If you are interested in contributing to Parlay, the following pages describe us
 
 # Using Parlay with Cilk, OpenMP, or TBB
 
-If you're already using Cilk, OpenMP, or Thread Building Blocks, and just want to use Parlay's algorithms without its parallel scheduler, that is easy to do. When building your program, simply add the appropriate compile definition as below.
+If you're already using Cilk (either OpenCilk or Cilk Plus), OpenMP, or Thread Building Blocks, and just want to use Parlay's algorithms without its parallel scheduler, that is easy to do. When building your program, simply add the appropriate compile definition as below.
 
 ```
--DPARLAY_CILK
+-DPARLAY_OPENCILK
+-DPARLAY_CILKPLUS
 -DPARLAY_OPENMP
 -DPARLAY_TBB
 ```

@@ -24,7 +24,8 @@ configure_danalysis(
     ${PARLAY_INCLUDE_DIR}/parlay/type_traits.h
     ${PARLAY_INCLUDE_DIR}/parlay/utilities.h
   IGNORE_DEFINITIONS
-    PARLAY_CILK
+    PARLAY_OPENCILK
+    PARLAY_CILKPLUS
     BSD
     __APPLE__
     __MACH__

@@ -287,8 +287,8 @@ function(add_dtests)
 
   # Test with CSAN (Cilksan) -- *ONLY* when using OpenCilk and the Cilk scheduler
   if (BUILD_CSAN_TESTS AND NOT NO_SANITIZE AND OPENCILK_SUPPORT
-      AND (TESTNAME STREQUAL "test_cilk_plugin"
-        OR CMAKE_CXX_FLAGS MATCHES "(^|[ \t\r\n]+)-DPARLAY_CILK($|[ \t\r\n]+)"))
+      AND (TESTNAME STREQUAL "test_opencilk_plugin"
+        OR CMAKE_CXX_FLAGS MATCHES "(^|[ \t\r\n]+)-DPARLAY_OPENCILK($|[ \t\r\n]+)"))
     add_dtest("${TESTNAME}" "${TESTFILES}" "${DTEST_CSAN_FLAGS}" "csan" gtest_main "${TESTLIBS}" "${TESTFLAGS}")
   endif()
 endfunction()
